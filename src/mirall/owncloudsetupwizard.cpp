@@ -54,7 +54,7 @@ OwncloudSetupWizard::OwncloudSetupWizard(QObject* parent) :
     connect( _ocWizard, SIGNAL(basicSetupFinished(int)),
              this, SLOT(slotAssistantFinished(int)), Qt::QueuedConnection);
     connect( _ocWizard, SIGNAL(finished(int)), SLOT(deleteLater()));
-    connect( _ocWizard, SIGNAL(skipFolderConfiguration()), SLOT(slotSkipFolderConfigruation()));
+    connect( _ocWizard, SIGNAL(skipFolderConfiguration()), SLOT(slotSkipFolderConfiguration()));
 }
 
 OwncloudSetupWizard::~OwncloudSetupWizard()
@@ -462,8 +462,17 @@ void OwncloudSetupWizard::slotAssistantFinished( int result )
     emit ownCloudWizardDone( result );
 }
 
-void OwncloudSetupWizard::slotSkipFolderConfigruation()
+void OwncloudSetupWizard::slotSkipFolderConfiguration()
 {
+    Account *newAccount = _ocWizard->account();
+    Account *origAccount = AccountManager::instance()->account();
+    bool reinitRequired = newAccount->changed(origAccount, true /* ignoreProtocol, allows http->https */);
+
+    if (reinitRequired) {
+        FolderMan *folderMan = FolderMan::instance();
+        folderMan->removeAllFolderDefinitions();
+    }
+
     replaceDefaultAccountWith(_ocWizard->account());
     _ocWizard->blockSignals(true);
     _ocWizard->close();
