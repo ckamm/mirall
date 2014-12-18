@@ -22,7 +22,7 @@ namespace OCC {
 
 void AbstractCredentialsWizardPage::cleanupPage()
 {
-    Account *account = static_cast<OwncloudWizard*>(wizard())->account();
+    AccountPtr account = static_cast<OwncloudWizard*>(wizard())->account();
     AbstractCredentials *creds = account->credentials();
     if (creds) {
         if (!creds->inherits("DummyCredentials")) {
