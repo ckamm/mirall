@@ -151,16 +151,19 @@ void PropagateUploadFileQNAM::start()
     if (_propagator->_abortRequested.fetchAndAddRelaxed(0))
         return;
 
-    _file = new QFile(_propagator->getFilePath(_item._file), this);
-    if (!_file->open(QIODevice::ReadOnly)) {
+    QString fileName = _propagator->getFilePath(_item._file);
+    _file = new QFile(fileName, this);
+    QString openError;
+    // Warning: this clears _file->fileName() and makes it unsuitable for QFileInfo!
+    if (!FileSystem::openFileSharedRead(_file, &openError)) {
         // Soft error because this is likely caused by the user modifying his files while syncing
-        done(SyncFileItem::SoftError, _file->errorString());
+        done(SyncFileItem::SoftError, openError);
         delete _file;
         return;
     }
 
     // Update the mtime and size, it might have changed since discovery.
-    _item._modtime = FileSystem::getModTime(_file->fileName());
+    _item._modtime = FileSystem::getModTime(fileName);
     quint64 fileSize = _file->size();
     _item._size = fileSize;
 
