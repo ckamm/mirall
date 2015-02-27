@@ -708,8 +708,18 @@ void SyncEngine::slotDiscoveryJobFinished(int discoveryResult)
         qDebug() << "Permissions of the root folder: " << _remotePerms[QLatin1String("")];
     }
 
+    // FIXME: The propagator could create his session in propagator_legacy.cpp
+    // There's no reason to keep csync_owncloud.c around
+    ne_session_s *session = 0;
+    // that call to set property actually is a get which will return the session
+    csync_set_module_property(_csync_ctx, "get_dav_session", &session);
+
+    // After discovery and reconcile, csync is no longer needed.
+    csync_commit(_csync_ctx);
+
     // The map was used for merging trees, convert it to a list:
     _syncedItems = _syncItemMap.values().toVector();
+    _syncItemMap.clear();
 
     // Adjust the paths for the renames.
     for (SyncFileItemVector::iterator it = _syncedItems.begin();
@@ -739,12 +749,6 @@ void SyncEngine::slotDiscoveryJobFinished(int discoveryResult)
             return;
         }
     }
-
-    // FIXME: The propagator could create his session in propagator_legacy.cpp
-    // There's no reason to keep csync_owncloud.c around
-    ne_session_s *session = 0;
-    // that call to set property actually is a get which will return the session
-    csync_set_module_property(_csync_ctx, "get_dav_session", &session);
 
     // post update phase script: allow to tweak stuff by a custom script in debug mode.
     if( !qgetenv("OWNCLOUD_POST_UPDATE_SCRIPT").isEmpty() ) {
@@ -863,9 +867,8 @@ void SyncEngine::finalize()
 {
     _thread.quit();
     _thread.wait();
-    csync_commit(_csync_ctx);
 
-    qDebug() << "CSync run took " << _stopWatch.addLapTime(QLatin1String("Sync Finished"));
+    qDebug() << "Sync run took " << _stopWatch.addLapTime(QLatin1String("Sync Finished"));
     _stopWatch.stop();
 
     _syncRunning = false;
