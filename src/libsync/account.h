@@ -164,7 +164,9 @@ public:
 
 signals:
     void propagatorNetworkActivity();
-    void invalidCredentials();
+
+    // these two signals forward to AccountState...
+    void invalidCredentials(AbstractCredentials* credentials);
     void credentialsFetched(AbstractCredentials* credentials);
 
 protected Q_SLOTS:

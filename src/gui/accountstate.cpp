@@ -61,8 +61,8 @@ AccountState::AccountState(AccountPtr account)
 {
     qRegisterMetaType<AccountState*>("AccountState*");
 
-    connect(account.data(), SIGNAL(invalidCredentials()),
-            SLOT(slotInvalidCredentials()));
+    connect(account.data(), SIGNAL(invalidCredentials(AbstractCredentials*)),
+            SLOT(slotInvalidCredentials(AbstractCredentials*)));
     connect(account.data(), SIGNAL(credentialsFetched(AbstractCredentials*)),
             SLOT(slotCredentialsFetched(AbstractCredentials*)));
 }
@@ -107,7 +107,8 @@ void AccountState::setState(State state)
         if (_state == SignedOut) {
             _connectionStatus = ConnectionValidator::Undefined;
             _connectionErrors.clear();
-        } else if (oldState == SignedOut && _state == Disconnected) {
+        } else if (_state == Disconnected
+                   && (oldState == SignedOut || oldState == TemporaryCredentialError)) {
             checkConnectivity();
         }
 
@@ -131,6 +132,8 @@ QString AccountState::stateString(State state)
         return QLatin1String("NetworkError");
     case ConfigurationError:
         return QLatin1String("ConfigurationError");
+    case TemporaryCredentialError:
+        return QLatin1String("TemporaryCredentialError");
     }
     return QLatin1String("Unknown");
 }
@@ -239,14 +242,43 @@ void AccountState::slotConnectionValidatorResult(ConnectionValidator::Status sta
     }
 }
 
-void AccountState::slotInvalidCredentials()
+void AccountState::slotInvalidCredentials(AbstractCredentials* credentials)
 {
-    if (isSignedOut()) {
+    qDebug() << "credentials were invalid";
+
+    // If we were connected and suddenly get a credential failure,
+    // try again a couple of times to see whether it solves itself
+    // before bothering the user.
+    if (isConnected()) {
+        _firstInvalidCredentialTimer.restart();
+        setState(TemporaryCredentialError);
         return;
     }
 
-    setState(ConfigurationError);
-    _waitingForNewCredentials = true;
+    // If we get another credential error while we still think it
+    // might solve itself, ignore the failure.
+    // 35s lets one run of the checkConnectionTimer (every 32s) take place
+    // and stops retrying on the third failure.
+    const int msIgnoreCredentialError = 35 * 1000;
+    if (_state == TemporaryCredentialError
+            && _firstInvalidCredentialTimer.elapsed() < msIgnoreCredentialError) {
+        return;
+    }
+
+    // invalidate & forget token/password
+    // but try to re-sign in.
+    if (credentials->ready()) {
+        credentials->invalidateAndFetch();
+    } else {
+        credentials->fetch();
+    }
+
+    // Go into the ConfigurationError state unless the user signed
+    // out explicitly.
+    if (! isSignedOut()) {
+        setState(ConfigurationError);
+        _waitingForNewCredentials = true;
+    }
 }
 
 void AccountState::slotCredentialsFetched(AbstractCredentials* credentials)

@@ -163,6 +163,8 @@ void ConnectionValidator::checkAuthentication()
     // continue in slotAuthCheck here :-)
     qDebug() << "# Check whether authenticated propfind works.";
     PropfindJob *job = new PropfindJob(_account, "/", this);
+    // credential failure will be reported explicitly below
+    job->setIgnoreCredentialFailure(true);
     job->setProperties(QList<QByteArray>() << "getlastmodified");
     connect(job, SIGNAL(result(QVariantMap)), SLOT(slotAuthSuccess()));
     connect(job, SIGNAL(networkError(QNetworkReply*)), SLOT(slotAuthFailed(QNetworkReply*)));

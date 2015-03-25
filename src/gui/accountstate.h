@@ -76,8 +76,14 @@ public:
         /// again automatically.
         NetworkError,
 
-        /// An error like invalid credentials where retrying won't help.
-        ConfigurationError
+        /// An error like permanently invalid credentials where retrying
+        /// won't help.
+        ConfigurationError,
+
+        /// We retry a couple of times when it looks like the credentials
+        /// stop being valid in the middle of normal operation (maybe the
+        /// auth server rebooted? See #2848). This is the state for it.
+        TemporaryCredentialError
     };
 
     /// The actual current connectivity status.
@@ -116,7 +122,7 @@ signals:
 
 protected Q_SLOTS:
     void slotConnectionValidatorResult(ConnectionValidator::Status status, const QStringList& errors);
-    void slotInvalidCredentials();
+    void slotInvalidCredentials(AbstractCredentials *credentials);
     void slotCredentialsFetched(AbstractCredentials* creds);
 
 private:
@@ -128,6 +134,10 @@ private:
     ConnectionStatus _connectionStatus;
     QStringList _connectionErrors;
     bool _waitingForNewCredentials;
+
+    // Started when we're connected and get an error about
+    // invalid credentials.
+    QElapsedTimer _firstInvalidCredentialTimer;
 };
 
 }

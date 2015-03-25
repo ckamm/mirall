@@ -494,15 +494,7 @@ void Account::slotCredentialsFetched()
 
 void Account::handleInvalidCredentials()
 {
-    // invalidate & forget token/password
-    // but try to re-sign in.
-    if (_credentials->ready()) {
-        _credentials->invalidateAndFetch();
-    } else {
-        _credentials->fetch();
-    }
-
-    emit invalidCredentials();
+    emit invalidCredentials(_credentials);
 }
 
 bool Account::wasMigrated()

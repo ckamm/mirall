@@ -272,6 +272,7 @@ void Application::slotAccountStateChanged(int state)
     case AccountState::ServerMaintenance:
     case AccountState::SignedOut:
     case AccountState::ConfigurationError:
+    case AccountState::TemporaryCredentialError:
     case AccountState::NetworkError:
     case AccountState::Disconnected:
         qDebug() << "Disabling sync scheduler, terminating sync";
