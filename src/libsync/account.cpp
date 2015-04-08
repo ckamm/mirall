@@ -310,6 +310,7 @@ QNetworkReply *Account::headRequest(const QString &relPath)
 QNetworkReply *Account::headRequest(const QUrl &url)
 {
     QNetworkRequest request(url);
+    request.setSslConfiguration(this->createSslConfig());
     return _am->head(request);
 }
 
@@ -375,9 +376,8 @@ QSslConfiguration Account::createSslConfig()
         QSslKey privateKey(_pemPrivateKey.toLocal8Bit(), QSsl::Rsa, QSsl::Pem, QSsl::PrivateKey , "");
 
         // SSL configuration
-        sslConfig.defaultConfiguration();
+        sslConfig = QSslConfiguration::defaultConfiguration();
         sslConfig.setCaCertificates(QSslSocket::systemCaCertificates());
-        QList<QSslCertificate> caCertifs = sslConfig.caCertificates();
         sslConfig.setLocalCertificate(sslClientCertificate);
         sslConfig.setPrivateKey(privateKey);
         qDebug() << "Added SSL client certificate to the query";
