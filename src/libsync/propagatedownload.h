@@ -96,6 +96,8 @@ signals:
 private slots:
     void slotReadyRead();
     void slotMetaDataChanged();
+private:
+    void setReadBufferSize(QNetworkReply* reply);
 };
 
 

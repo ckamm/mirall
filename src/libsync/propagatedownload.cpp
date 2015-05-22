@@ -101,7 +101,8 @@ void GETFileJob::start() {
     }
     setupConnections(reply());
 
-    reply()->setReadBufferSize(16 * 1024); // keep low so we can easier limit the bandwidth
+    setReadBufferSize(reply());
+
     qDebug() << Q_FUNC_INFO << _bandwidthManager << _bandwidthChoked << _bandwidthLimited;
     if (_bandwidthManager) {
         _bandwidthManager->registerDownloadJob(this);
@@ -123,7 +124,7 @@ void GETFileJob::slotMetaDataChanged()
 {
     // For some reason setting the read buffer in GETFileJob::start doesn't seem to go
     // through the HTTP layer thread(?)
-    reply()->setReadBufferSize(16 * 1024);
+    setReadBufferSize(reply());
 
     int httpStatus = reply()->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
 
@@ -189,6 +190,19 @@ void GETFileJob::slotMetaDataChanged()
     auto lastModified = reply()->header(QNetworkRequest::LastModifiedHeader);
     if (!lastModified.isNull()) {
         _lastModified = Utility::qDateTimeToTime_t(lastModified.toDateTime());
+    }
+}
+
+void GETFileJob::setReadBufferSize(QNetworkReply* reply)
+{
+    // Without a read buffer size the amount of data in the buffer can grow
+    // too large for big downloads if writing it to the harddisk is slow.
+    if (_bandwidthManager
+            && (_bandwidthManager->usingAbsoluteDownloadLimit()
+                || _bandwidthManager->usingRelativeDownloadLimit())) {
+        reply->setReadBufferSize(16 * 1024); // keep low so we can easier limit the bandwidth
+    } else {
+        reply->setReadBufferSize(128 * 1024);
     }
 }
 
