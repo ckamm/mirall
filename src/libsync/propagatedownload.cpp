@@ -622,6 +622,17 @@ void PropagateDownloadFileQNAM::downloadFinished()
         }
     }
 
+    // Make the file read-only if it's read-only on the server.
+    if (!_item._remotePerm.contains("W")) {
+        qDebug() << "READ ONLY" << fn;
+        QFile::Permissions perms = _tmpFile.permissions();
+        perms &= ~QFile::WriteOwner;
+        perms &= ~QFile::WriteUser;
+        perms &= ~QFile::WriteGroup;
+        perms &= ~QFile::WriteOther;
+        _tmpFile.setPermissions(perms);
+    }
+
     QString error;
     _propagator->addTouchedFile(fn);
     // The fileChanged() check is done above to generate better error messages.
