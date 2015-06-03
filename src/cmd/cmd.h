@@ -17,15 +17,20 @@
 #define CMD_H
 
 #include <QObject>
-
+#include <QNetworkAccessManager>
 
 class Cmd : public QObject {
     Q_OBJECT
 public:
     Cmd() : QObject() { }
+    QNetworkAccessManager nam;
 public slots:
     void transmissionProgressSlot() {
     }
+    void sslErrors(QNetworkReply*,QList<QSslError>);
+    void next();
+    void next2();
+    void done();
 };
 
 #endif

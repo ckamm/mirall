@@ -285,9 +285,54 @@ void selectiveSyncFixup(OCC::SyncJournalDb *journal, const QStringList &newList)
     }
 }
 
+void Cmd::sslErrors(QNetworkReply* reply,QList<QSslError> errors)
+{
+    static int i = 0;
+    qDebug() << "sslErrors" << i;
+    if (i == 0) {
+        reply->ignoreSslErrors(errors);
+        qDebug() << "- ignoreSslErrors() called";
+        ++i;
+    } else {
+        qDebug() << "- just returned";
+//        qDebug() << "- aborted!";
+//        reply->abort();
+    }
+}
+
+void Cmd::next()
+{
+    qDebug() << "waiting for 5 seconds...";
+    QTimer::singleShot(5000, this, SLOT(next2()));
+}
+
+void Cmd::next2()
+{
+    qDebug() << "triggering a second request";
+    auto reply = nam.get(QNetworkRequest(QUrl("https://SERVER")));
+    connect(reply, SIGNAL(finished()), this, SLOT(done()));
+}
+
+void Cmd::done()
+{
+    auto reply = qobject_cast<QNetworkReply*>(sender());
+    qDebug() << "second request finished ok?" << (reply->error() == QNetworkReply::NoError);
+}
+
 
 int main(int argc, char **argv) {
     QCoreApplication app(argc, argv);
+
+    {
+        Cmd cmd;
+        QObject::connect(&cmd.nam, SIGNAL(sslErrors(QNetworkReply*,QList<QSslError>)),
+                &cmd, SLOT(sslErrors(QNetworkReply*,QList<QSslError>)));
+        cmd.nam.setProxy(QNetworkProxy(QNetworkProxy::HttpProxy, "localhost", 8080));
+        qDebug() << "sending first request";
+        auto reply = cmd.nam.get(QNetworkRequest(QUrl("https://SERVER")));
+        QObject::connect(reply, SIGNAL(finished()), &cmd, SLOT(next()));
+        app.exec();
+    }
 
     CmdOptions options;
     options.silent = false;
