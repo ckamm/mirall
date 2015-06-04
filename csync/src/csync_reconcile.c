@@ -181,6 +181,9 @@ static int _csync_merge_algorithm_visitor(void *obj, void *data) {
 
                 if(!other) {
                     cur->instruction = CSYNC_INSTRUCTION_NEW;
+                    if (cur->type == CSYNC_FTW_TYPE_DIR) {
+                        cur->should_update_etag = true;
+                    }
                 } else if (other->instruction == CSYNC_INSTRUCTION_NONE
                            || cur->type == CSYNC_FTW_TYPE_DIR) {
                     other->instruction = CSYNC_INSTRUCTION_RENAME;
