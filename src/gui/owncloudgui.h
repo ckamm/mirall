@@ -32,6 +32,8 @@ class SettingsDialog;
 class SettingsDialogMac;
 class Application;
 class LogBrowser;
+class AccountState;
+typedef QSharedPointer<AccountState> AccountStatePtr;
 
 /**
  * @brief The ownCloudGui class
@@ -77,9 +79,12 @@ public slots:
 
 private slots:
     void slotDisplayIdle();
+    void slotLogin();
+    void slotLogout();
 
 private:
     void setupActions();
+    void addAccountContextMenu(AccountStatePtr accountState, QMenu* menu, bool separateMenu);
 
     QPointer<Systray> _tray;
 #if defined(Q_OS_MAC)
@@ -91,6 +96,7 @@ private:
        // tray's menu
     QScopedPointer<QMenu> _contextMenu;
     QMenu *_recentActionsMenu;
+    QVector<QMenu*> _accountMenus;
 
     QAction *_actionLogin;
     QAction *_actionLogout;
