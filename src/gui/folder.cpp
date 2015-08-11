@@ -848,7 +848,8 @@ void Folder::startSync(const QStringList &pathList)
                     SLOT(slotAboutToRemoveAllFiles(SyncFileItem::Direction,bool*)));
     connect(_engine.data(), SIGNAL(folderDiscovered(bool,QString)), this, SLOT(slotFolderDiscovered(bool,QString)));
     connect(_engine.data(), SIGNAL(transmissionProgress(ProgressInfo)), this, SLOT(slotTransmissionProgress(ProgressInfo)));
-    connect(_engine.data(), SIGNAL(jobCompleted(const SyncFileItem &)), this, SLOT(slotJobCompleted(const SyncFileItem &)));
+    connect(_engine.data(), SIGNAL(jobCompleted(const SyncFileItem &, const PropagatorJob &)),
+            this, SLOT(slotJobCompleted(const SyncFileItem &, const PropagatorJob &)));
     connect(_engine.data(), SIGNAL(syncItemDiscovered(const SyncFileItem &)), this, SLOT(slotSyncItemDiscovered(const SyncFileItem &)));
     connect(_engine.data(), SIGNAL(newBigFolder(QString)), this, SLOT(slotNewBigFolderDiscovered(QString)));
 
@@ -1034,7 +1035,7 @@ void Folder::slotTransmissionProgress(const ProgressInfo &pi)
 }
 
 // a job is completed: count the errors and forward to the ProgressDispatcher
-void Folder::slotJobCompleted(const SyncFileItem &item)
+void Folder::slotJobCompleted(const SyncFileItem &item, const PropagatorJob& job)
 {
     if (item.hasErrorStatus()) {
         _stateLastSyncItemsWithError.insert(item._file);
@@ -1044,7 +1045,7 @@ void Folder::slotJobCompleted(const SyncFileItem &item)
         // Count all error conditions.
         _syncResult.setWarnCount(_syncResult.warnCount()+1);
     }
-    emit ProgressDispatcher::instance()->jobCompleted(alias(), item);
+    emit ProgressDispatcher::instance()->jobCompleted(alias(), item, job);
 }
 
 void Folder::slotSyncItemDiscovered(const SyncFileItem & item)
