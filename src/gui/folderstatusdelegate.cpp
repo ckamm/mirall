@@ -94,6 +94,9 @@ void FolderStatusDelegate::paint(QPainter *painter, const QStyleOptionViewItem &
     QStyledItemDelegate::paint(painter,option,index);
 
     if (index.data(AddButton).toBool()) {
+        // Add some margin before the button
+        painter->translate(0, 10);
+
         QSize hint = sizeHint(option, index);
         QStyleOptionButton opt;
         static_cast<QStyleOption&>(opt) = option;
