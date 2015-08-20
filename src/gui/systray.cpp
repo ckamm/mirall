@@ -26,7 +26,51 @@
 #define NOTIFICATIONS_IFACE "org.freedesktop.Notifications"
 #endif
 
+#if QT_VERSION == QT_VERSION_CHECK(5, 5, 0)
+#include <QPointer>
+#include <QMenu>
+
+class QObjectPrivate : public QObjectData
+{
+public:
+    static void* get(QObject* o)
+    {
+        return o->d_func();
+    }
+
+    void* extraData;
+    void* threadData;
+    void* connectionLists;
+    void* senders;
+    void* currentSender;
+    quint32 connectedSignals[2];
+    void* union_ptr;
+    void* atomic_ptr;
+};
+
+class QSystemTrayIconPrivate : public QObjectPrivate
+{
+public:
+    QPointer<QMenu> menu;
+    QIcon icon;
+    QString toolTip;
+    QObject* sys;
+    QObject* qpa_sys;
+};
+
+#endif
+
 namespace OCC {
+
+Systray::Systray()
+{
+#if QT_VERSION == QT_VERSION_CHECK(5, 5, 0)
+    QSystemTrayIconPrivate* priv =
+            reinterpret_cast<QSystemTrayIconPrivate*>(QObjectPrivate::get(this));
+    delete priv->qpa_sys;
+    priv->qpa_sys = 0;
+#endif
+}
 
 void Systray::showMessage(const QString & title, const QString & message, MessageIcon icon, int millisecondsTimeoutHint)
 {
