@@ -258,8 +258,23 @@ void OwncloudAdvancedSetupPage::slotSelectiveSyncClicked()
 
     AccountPtr acc = static_cast<OwncloudWizard *>(wizard())->account();
     SelectiveSyncDialog *dlg = new SelectiveSyncDialog(acc, _remoteFolder, _selectiveSyncBlacklist, this);
-    if (dlg->exec() == QDialog::Accepted) {
+
+    const int result = dlg->exec();
+    bool updateBlacklist = false;
+
+    // We need to update the selective sync blacklist either when the dialog
+    // was accepted, or when it was used in conjunction with the
+    // wizardSelectiveSyncDefaultNothing feature and was cancelled - in that
+    // case everything shall be synced.
+    if (result == QDialog::Accepted) {
         _selectiveSyncBlacklist = dlg->createBlackList();
+        updateBlacklist = true;
+    } else if (result == QDialog::Rejected && _selectiveSyncBlacklist == QStringList("/")) {
+        _selectiveSyncBlacklist = QStringList();
+        updateBlacklist = true;
+    }
+
+    if (updateBlacklist) {
         if (!_selectiveSyncBlacklist.isEmpty()) {
             _ui.rSelectiveSync->blockSignals(true);
             _ui.rSelectiveSync->setChecked(true);
