@@ -42,6 +42,7 @@
 #include <QObject>
 #include <QTimerEvent>
 #include <QDebug>
+#include <QThread>
 
 namespace OCC {
 
@@ -608,6 +609,8 @@ bool PropagateDirectory::scheduleNextJob()
 
 void PropagateDirectory::slotSubJobFinished(SyncFileItem::Status status)
 {
+    qDebug() << "BUG!" << this << QThread::currentThread() << sender();
+
     if (status == SyncFileItem::FatalError ||
             (sender() == _firstJob.data() && status != SyncFileItem::Success && status != SyncFileItem::Restoration)) {
         abort();
@@ -618,8 +621,22 @@ void PropagateDirectory::slotSubJobFinished(SyncFileItem::Status status)
     } else if (status == SyncFileItem::NormalError || status == SyncFileItem::SoftError) {
         _hasError = status;
     }
+
     _runningNow--;
     _jobsFinished++;
+    qDebug() << "BUG!" << "Finished job" << "running" << _runningNow << "done" << _jobsFinished;
+    if (PropagatorJob* job = qobject_cast<PropagatorJob*>(sender())) {
+        if (!_runningJobs.contains(job)) {
+            qDebug() << "BUG!" << "The job was not in the list of running jobs!";
+        }
+        _runningJobs.remove(job);
+        if (_finishedJobs.contains(job)) {
+            qDebug() << "BUG!" << "The job was already marked as finished!";
+        }
+        _finishedJobs.insert(job);
+    } else {
+        qDebug() << "BUG!" << "not a propagator job";
+    }
 
     int totalJobs = _subJobs.count();
     if (_firstJob) {

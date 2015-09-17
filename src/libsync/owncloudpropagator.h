@@ -24,6 +24,9 @@
 #include <QPointer>
 #include <QIODevice>
 #include <QMutex>
+#include <QSet>
+#include <QDebug>
+#include <QThread>
 
 #include "syncfileitem.h"
 #include "syncjournaldb.h"
@@ -171,6 +174,9 @@ public:
 
     SyncFileItemPtr _item;
 
+    QSet<PropagatorJob*> _runningJobs;
+    QSet<PropagatorJob*> _finishedJobs;
+
     int _jobsFinished; // number of jobs that have completed
     int _runningNow; // number of subJobs running right now
     SyncFileItem::Status _hasError;  // NoStatus,  or NormalError / SoftError if there was an error
@@ -212,6 +218,8 @@ private slots:
             connect(next, SIGNAL(progress(const SyncFileItem &,quint64)), this, SIGNAL(progress(const SyncFileItem &,quint64)));
             connect(next, SIGNAL(ready()), this, SIGNAL(ready()));
             _runningNow++;
+            _runningJobs.insert(next);
+            qDebug() << "BUG!" << this << QThread::currentThread() << "Started job:" << next << "running" << _runningNow << "done" << _jobsFinished;
         }
         return next->scheduleNextJob();
     }
