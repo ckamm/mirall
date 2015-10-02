@@ -30,7 +30,7 @@
 #include "syncrunfilelog.h"
 #include "theme.h"
 #include "filesystem.h"
-
+#include "excludedfiles.h"
 
 #include "creds/abstractcredentials.h"
 
@@ -702,6 +702,22 @@ void Folder::removeFromSettings() const
     auto  settings = _accountState->settings();
     settings->beginGroup(QLatin1String("Folders"));
     settings->remove(_definition.alias);
+}
+
+bool Folder::isFileExcluded(const QString& fullPath) const
+{
+    QString myFullPath = fullPath;
+    if (myFullPath.endsWith(QLatin1Char('/'))) {
+        myFullPath.chop(1);
+    }
+
+    if (!myFullPath.startsWith(path())) {
+        return false;
+    }
+
+    QString relativePath = myFullPath.mid(path().size());
+    auto excl = ExcludedFiles::instance().isExcluded(myFullPath, relativePath, _definition.ignoreHiddenFiles);
+    return excl != CSYNC_NOT_EXCLUDED;
 }
 
 void Folder::watcherSlot(QString fn)

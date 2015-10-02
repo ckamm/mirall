@@ -16,6 +16,7 @@
 #include "ignorelisteditor.h"
 #include "folderman.h"
 #include "ui_ignorelisteditor.h"
+#include "excludedfiles.h"
 
 #include <QFile>
 #include <QDir>
@@ -124,6 +125,8 @@ void IgnoreListEditor::slotUpdateLocalIgnoreList()
      * handled globally. Save it to every folder that is defined.
      */
     FolderMan::instance()->setIgnoreHiddenFiles(ignoreHiddenFiles());
+
+    ExcludedFiles::instance().reloadExcludes();
 }
 
 void IgnoreListEditor::slotAddPattern()
