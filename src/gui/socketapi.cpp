@@ -580,13 +580,7 @@ SyncFileStatus SocketApi::fileStatus(Folder *folder, const QString& systemFileNa
     }
 
     // Is it excluded?
-    CSYNC_EXCLUDE_TYPE excl = csync_excluded_no_ctx(excludes, fileName.toUtf8(), type);
-    if( folder->ignoreHiddenFiles()
-            && (fi.isHidden()
-                || fi.fileName().startsWith(QLatin1Char('.'))) ) {
-        excl = CSYNC_FILE_EXCLUDE_HIDDEN;
-    }
-    if( excl != CSYNC_NOT_EXCLUDED ) {
+    if( FileSystem::fileExcluded(fileName, excludes, folder->ignoreHiddenFiles()) ) {
         return SyncFileStatus(SyncFileStatus::STATUS_IGNORE);
     }
 

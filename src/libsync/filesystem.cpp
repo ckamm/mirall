@@ -43,6 +43,8 @@ extern "C" {
 #include "csync.h"
 #include "vio/csync_vio_local.h"
 #include "std/c_path.h"
+#include "std/c_string.h"
+#include "csync_exclude.h"
 }
 
 namespace OCC {
@@ -490,5 +492,24 @@ QByteArray FileSystem::calcAdler32( const QString& filename )
     return QByteArray::number( adler, 16 );
 }
 #endif
+
+bool FileSystem::fileExcluded(const QString& fileName, c_strlist_s* excludes, bool ignoreHidden)
+{
+    QFileInfo fi(fileName);
+
+    csync_ftw_type_e type = CSYNC_FTW_TYPE_FILE;
+    if (fi.isDir()) {
+        type = CSYNC_FTW_TYPE_DIR;
+    }
+
+    CSYNC_EXCLUDE_TYPE excl = csync_excluded_no_ctx(excludes, fileName.toUtf8(), type);
+    if( ignoreHidden ) {
+        if( fi.isHidden() || fi.fileName().startsWith(QLatin1Char('.')) ) {
+            excl = CSYNC_FILE_EXCLUDE_HIDDEN;
+        }
+    }
+
+    return excl != CSYNC_NOT_EXCLUDED;
+}
 
 } // namespace OCC

@@ -25,6 +25,10 @@
 #include <QScopedPointer>
 #include <QSet>
 
+extern "C" {
+#include <std/c_string.h>
+}
+
 class QTimer;
 
 namespace OCC {
@@ -64,8 +68,6 @@ public:
       */
     void addIgnoreListFile( const QString& );
 
-    QStringList ignores() const;
-
     /**
      * Not all backends are recursive by default.
      * Those need to be notified when a directory is added or removed while the watcher is disabled.
@@ -99,7 +101,7 @@ protected:
 
 private:
     QScopedPointer<FolderWatcherPrivate> _d;
-    QStringList _ignores;
+    c_strlist_t* _excludes;
     QTime _timer;
     QSet<QString> _lastPaths;
     bool  _ignoreHidden;

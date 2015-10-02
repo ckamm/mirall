@@ -23,6 +23,7 @@
 
 class QFile;
 class QFileInfo;
+struct c_strlist_s;
 
 namespace OCC {
 
@@ -148,6 +149,14 @@ QByteArray OWNCLOUDSYNC_EXPORT calcSha1( const QString& fileName );
 #ifdef ZLIB_FOUND
 QByteArray OWNCLOUDSYNC_EXPORT calcAdler32( const QString& fileName );
 #endif
+
+/**
+ * Returns whether the given file is excluded when using the given
+ * exclude list and ignoreHidden status.
+ */
+bool OWNCLOUDSYNC_EXPORT fileExcluded( const QString& fileName,
+                                       c_strlist_s* excludes,
+                                       bool ignoreHidden );
 
 }
 
