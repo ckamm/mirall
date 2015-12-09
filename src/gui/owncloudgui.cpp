@@ -637,7 +637,6 @@ void ownCloudGui::slotLogin()
     }
 }
 
-// FIXME: Unify codepath with AccountSettings::slotToggleSignInState()
 void ownCloudGui::slotLogout()
 {
     auto list = AccountManager::instance()->accounts();
@@ -647,15 +646,7 @@ void ownCloudGui::slotLogout()
     }
 
     foreach (const auto &ai, list) {
-        AccountPtr a = ai->account();
-        // invalidate & forget token/password
-        a->credentials()->invalidateToken();
-        // terminate all syncs and unload folders
-        FolderMan *folderMan = FolderMan::instance();
-        folderMan->terminateSyncProcess();
         ai->setSignedOut(true);
-        // show result
-        slotComputeOverallSyncStatus();
     }
 }
 

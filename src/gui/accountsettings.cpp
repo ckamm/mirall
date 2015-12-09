@@ -176,13 +176,9 @@ void AccountSettings::slotOpenAccountWizard()
     OwncloudSetupWizard::runWizard(qApp, SLOT(slotownCloudWizardDone(int)), 0);
 }
 
-// FIXME: Use same code path as ownCloudGui::slotLogout()
 void AccountSettings::slotToggleSignInState()
 {
     bool signedOutState = _accountState->isSignedOut();
-    if (!signedOutState) {
-        _accountState->account()->credentials()->invalidateToken();
-    }
     _accountState->setSignedOut( !signedOutState );
 }
 

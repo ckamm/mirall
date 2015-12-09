@@ -121,6 +121,7 @@ bool AccountState::isSignedOut() const
 void AccountState::setSignedOut(bool signedOut)
 {
     if (signedOut) {
+        account()->credentials()->forgetSensitiveData();
         setState(SignedOut);
     } else if (_state == SignedOut) {
         setState(Disconnected);
