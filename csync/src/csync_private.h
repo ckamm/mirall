@@ -189,6 +189,7 @@ struct csync_file_stat_s {
   unsigned int should_update_metadata : 1; /*specify that the etag, or the remote perm or fileid has
                                 changed and need to be updated on the db even for INSTRUCTION_NONE */
   unsigned int has_ignored_files      : 1; /* specify that a directory, or child directory contains ignored files */
+  unsigned int type_change            : 1; /* for INSTRUCTION_NEW: whether 'type' differs between local and remote */
 
   char *destpath;   /* for renames */
   const char *etag;
