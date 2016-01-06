@@ -246,12 +246,6 @@ PropagateItemJob* OwncloudPropagator::createJob(const SyncFileItemPtr &item) {
         case CSYNC_INSTRUCTION_SYNC:
         case CSYNC_INSTRUCTION_CONFLICT:
             if (item->_isDirectory) {
-                // Did a file turn into a directory?
-                if (QFileInfo(getFilePath(item->_file)).isFile()) {
-                    auto job = new PropagateLocalMkdir(this, item);
-                    job->setDeleteExistingFile(true);
-                    return job;
-                }
                 // Should we set the mtime?
                 return 0;
             }
@@ -340,10 +334,70 @@ void OwncloudPropagator::start(const SyncFileItemVector& items)
             directories.pop();
         }
 
-        if (item->_isDirectory) {
+        QFileInfo fi(getFilePath(item->_file));
+        if (item->_isDirectory || fi.isDir()) {
+            bool dirIsRemoved = item->_instruction == CSYNC_INSTRUCTION_REMOVE;
             PropagateDirectory *dir = new PropagateDirectory(this, item);
-            dir->_firstJob.reset(createJob(item));
-            if (item->_instruction == CSYNC_INSTRUCTION_REMOVE) {
+
+            /* Special-case handling for files becoming directories or the reverse.
+             *
+             * Note that this does not even try to handle renames. In practice
+             * the earlier phases currently don't generate rename items anyway
+             * when the source and target are already in the tree, so it's
+             * currently not an extra limitation.
+             */
+            if (!item->_isDirectory && fi.isDir() && item->_direction == SyncFileItem::Down) {
+                // The remote file should overwrite the local directory!
+
+                // The DirectoryConflict job *must* run before the file propagation job
+                // and we also need to make sure other jobs that deal with the files
+                // in the directory (like removes or moves, in particular of other
+                // directories!) run first.
+                // Making it a directory job ensures that moves run first and that the
+                // (potential) directory rename happens before the file propagation.
+                // Prepending all jobs to directoriesToRemove ensures that removals of
+                // subdirectories happen before the directory is renamed.
+                dir->_firstJob.reset(new PropagateLocalDirectoryConflict(this, item));
+                dir->append(createJob(item)); // upload or rename...
+                dirIsRemoved = true;
+            } else if (item->_isDirectory && fi.isFile() && item->_direction == SyncFileItem::Down) {
+                // The remote directory should overwrite the local file!
+
+                // Technically, this could be a local rename, see above.
+                auto job = new PropagateLocalMkdir(this, item);
+                job->setDeleteExistingFile(true);
+                dir->_firstJob.reset(job);
+            } else if (item->_isDirectory && fi.isFile() && item->_direction == SyncFileItem::Up) {
+                // The local file should overwrite the remote directory!
+
+                auto job = new PropagateUploadFileQNAM(this, item);
+                job->setDeleteExisting(true);
+                dir->_firstJob.reset(job);
+                dirIsRemoved = true;
+            } else if (!item->_isDirectory && fi.isDir() && item->_direction == SyncFileItem::Up) {
+                // The local directory should overwrite the remote file!
+
+                // Technically, this could be a remote rename, see above.
+                auto job = new PropagateRemoteMkdir(this, item);
+                job->setDeleteExisting(true);
+                dir->_firstJob.reset(job);
+
+                // Skip all potential uploads to the new folder.
+                // Processing them now leads to problems with permissions:
+                // checkForPermissions() has already run and used the permissions
+                // of the file we're about to delete to decide whether uploading
+                // to the new dir is ok...
+                foreach(const SyncFileItemPtr &item2, items) {
+                    if (item2->destination().startsWith(item->destination() + "/")) {
+                        item2->_instruction = CSYNC_INSTRUCTION_NONE;
+                        _anotherSyncNeeded = true;
+                    }
+                }
+            } else {
+                // The common default case
+                dir->_firstJob.reset(createJob(item));
+            }
+            if (dirIsRemoved) {
                 // We do the removal of directories at the end, because there might be moves from
                 // these directories that will happen later.
                 directoriesToRemove.prepend(dir);
@@ -362,26 +416,7 @@ void OwncloudPropagator::start(const SyncFileItemVector& items)
             }
             directories.push(qMakePair(item->destination() + "/" , dir));
         } else if (PropagateItemJob* current = createJob(item)) {
-            // If the target of a job is currently a directory, we need to remove it!
-            // This can happen when what used to be a directory changed to a file on the
-            // server an a PropagateLocalRename or PropageDownload job wants to run.
-            if (item->_direction == SyncFileItem::Down
-                    && QFileInfo(getFilePath(item->_file)).isDir()) {
-                // The DirectoryConflict job *must* run before the file propagation job
-                // and we also need to make sure other jobs that deal with the files
-                // in the directory (like removes or moves, in particular of other
-                // directories!) run first.
-                // Making it a directory job ensures that moves run first and that the
-                // (potential) directory rename happens before the file propagation.
-                // Prepending all jobs to directoriesToRemove ensures that removals of
-                // subdirectories happen before the directory is renamed.
-                PropagateDirectory *dir = new PropagateDirectory(this, item);
-                dir->_firstJob.reset(new PropagateLocalDirectoryConflict(this, item));
-                dir->append(current);
-                directoriesToRemove.prepend(dir);
-            } else {
-                directories.top().second->append(current);
-            }
+            directories.top().second->append(current);
         }
     }
 
