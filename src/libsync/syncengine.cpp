@@ -444,7 +444,7 @@ int SyncEngine::treewalkFile( TREE_WALK_FILE *file, bool remote )
         item->_errorString = tr("Filename encoding is not valid");
     }
 
-    item->_isDirectory = file->type == CSYNC_FTW_TYPE_DIR;
+    bool isDirectory = file->type == CSYNC_FTW_TYPE_DIR;
 
     if (file->etag && file->etag[0]) {
         item->_etag = file->etag;
@@ -474,7 +474,7 @@ int SyncEngine::treewalkFile( TREE_WALK_FILE *file, bool remote )
     int re = 0;
     switch(file->instruction) {
     case CSYNC_INSTRUCTION_NONE: {
-        if (remote && item->_should_update_metadata && !item->_isDirectory && item->_instruction == CSYNC_INSTRUCTION_NONE) {
+        if (remote && item->_should_update_metadata && !isDirectory && item->_instruction == CSYNC_INSTRUCTION_NONE) {
             // Update the database now already:  New remote fileid or Etag or RemotePerm
             // Or for files that were detected as "resolved conflict".
             // Or a local inode/mtime change (see localMetadataUpdate below)
@@ -509,17 +509,18 @@ int SyncEngine::treewalkFile( TREE_WALK_FILE *file, bool remote )
             _syncItemMap.remove(key);
         }
         // Any files that are instruction NONE?
-        if (!item->_isDirectory && file->other.instruction == CSYNC_INSTRUCTION_NONE) {
+        if (!isDirectory && file->other.instruction == CSYNC_INSTRUCTION_NONE) {
             _hasNoneFiles = true;
         }
         // We want to still update etags of directories, other NONE
         // items can be ignored.
-        bool directoryEtagUpdate = item->_isDirectory && file->should_update_metadata;
+        bool directoryEtagUpdate = isDirectory && file->should_update_metadata;
         bool localMetadataUpdate = !remote && file->should_update_metadata;
         if (!directoryEtagUpdate) {
             if (localMetadataUpdate) {
                 // Hack, we want a local metadata update to happen, but only if the
                 // remote tree doesn't ask us to do some kind of propagation.
+                item->_isDirectory = isDirectory;
                 _syncItemMap.insert(key, item);
             }
             return re;
@@ -529,7 +530,7 @@ int SyncEngine::treewalkFile( TREE_WALK_FILE *file, bool remote )
     case CSYNC_INSTRUCTION_RENAME:
         dir = !remote ? SyncFileItem::Down : SyncFileItem::Up;
         item->_renameTarget = renameTarget;
-        if (item->_isDirectory)
+        if (isDirectory)
             _renamedFolders.insert(item->_file, item->_renameTarget);
         break;
     case CSYNC_INSTRUCTION_REMOVE:
@@ -547,6 +548,7 @@ int SyncEngine::treewalkFile( TREE_WALK_FILE *file, bool remote )
     case CSYNC_INSTRUCTION_STAT_ERROR:
     default:
         dir = remote ? SyncFileItem::Down : SyncFileItem::Up;
+        item->_type_change = file->type_change;
         if (!remote && file->instruction == CSYNC_INSTRUCTION_SYNC) {
             // An upload of an existing file means that the file was left unchanged on the server
             // This counts as a NONE for detecting if all the files on the server were changed
@@ -556,6 +558,7 @@ int SyncEngine::treewalkFile( TREE_WALK_FILE *file, bool remote )
     }
 
     item->_direction = dir;
+    item->_isDirectory = isDirectory;
     if (instruction != CSYNC_INSTRUCTION_NONE) {
         // check for blacklisting of this item.
         // if the item is on blacklist, the instruction was set to ERROR

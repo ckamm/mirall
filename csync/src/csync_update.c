@@ -209,6 +209,7 @@ static int _csync_detect_update(CSYNC *ctx, const char *file,
   st->etag = NULL;
   st->child_modified = 0;
   st->has_ignored_files = 0;
+  st->type_change = 0;
 
   /* FIXME: Under which conditions are the following two ifs true and the code
    * is executed? */
@@ -301,6 +302,11 @@ static int _csync_detect_update(CSYNC *ctx, const char *file,
                     goto out;
                 }
             }
+
+            // Preserve the EVAL flag later on if the type has changed.
+            if (tmp->type != fs->type)
+                st->child_modified = 1;
+
             st->instruction = CSYNC_INSTRUCTION_EVAL;
             goto out;
         }

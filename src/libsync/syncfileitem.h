@@ -66,7 +66,7 @@ public:
     SyncFileItem() : _type(UnknownType),  _direction(None), _isDirectory(false),
          _serverHasIgnoredFiles(false), _hasBlacklistEntry(false),
          _errorMayBeBlacklisted(false), _status(NoStatus),
-        _isRestoration(false), _should_update_metadata(false),
+        _isRestoration(false), _should_update_metadata(false), _type_change(false),
         _httpErrorCode(0), _requestDuration(0), _affectedItems(1),
         _instruction(CSYNC_INSTRUCTION_NONE), _modtime(0), _size(0), _inode(0)
     {
@@ -156,6 +156,7 @@ public:
     Status               _status BITFIELD(4);
     bool                 _isRestoration BITFIELD(1); // The original operation was forbidden, and this is a restoration
     bool                 _should_update_metadata BITFIELD(1);
+    bool                 _type_change BITFIELD(1);
     quint16              _httpErrorCode;
     QString              _errorString; // Contains a string only in case of error
     QByteArray           _responseTimeStamp;

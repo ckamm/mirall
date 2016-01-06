@@ -256,6 +256,9 @@ struct csync_tree_walk_file_s {
     /* For directories: Does it have children that were ignored (hidden or ignore pattern) */
     int         has_ignored_files;
 
+    /* For INSTRUCTION_NEW: Whether the type of the entity changed between local and remote */
+    int         type_change;
+
     const char *rename_path;
     const char *etag;
     const char *file_id;
