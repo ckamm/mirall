@@ -344,6 +344,24 @@ static void check_csync_excluded_performance(void **state)
     }
 }
 
+static void check_csync_exclude_expand_escapes(void **state)
+{
+    (void)state;
+
+    assert_true(0 == strcmp(
+            csync_exclude_expand_escapes(
+                "keep \\' \\\" \\? \\\\ \\a \\b \\f \\n \\r \\t \\v \\z"),
+            "keep ' \" ? \\ \a \b \f \n \r \t \v \\z"));
+
+    assert_true(0 == strcmp(
+            csync_exclude_expand_escapes(""),
+            ""));
+
+    assert_true(0 == strcmp(
+            csync_exclude_expand_escapes("\\"),
+            "\\"));
+}
+
 int torture_run_tests(void)
 {
     const UnitTest tests[] = {
@@ -354,6 +372,7 @@ int torture_run_tests(void)
         unit_test_setup_teardown(check_csync_pathes, setup_init, teardown),
         unit_test_setup_teardown(check_csync_is_windows_reserved_word, setup_init, teardown),
         unit_test_setup_teardown(check_csync_excluded_performance, setup_init, teardown),
+        unit_test(check_csync_exclude_expand_escapes),
     };
 
     return run_tests(tests);
