@@ -15,6 +15,8 @@
 
 #include <QInputDialog>
 #include <QLabel>
+#include <QTimer>
+#include <QApplication>
 #include "creds/httpcredentialsgui.h"
 #include "theme.h"
 #include "account.h"
@@ -23,6 +25,27 @@ using namespace QKeychain;
 
 namespace OCC
 {
+
+class FocusChecker : public QObject
+{
+    Q_OBJECT
+public slots:
+
+    void check()
+    {
+        if (QApplication::activeWindow() != dialog) {
+            lineEdit->clearFocus();
+
+            // Stop cursor from blinking...
+            // ... but it would need to be set writable once the window is activated
+            // lineEdit->setReadOnly(true);
+        }
+    }
+
+public:
+    QInputDialog * dialog;
+    QLineEdit * lineEdit;
+};
 
 void HttpCredentialsGui::askFromUser()
 {
@@ -58,6 +81,12 @@ void HttpCredentialsGui::askFromUserAsync()
         dialogLabel->setOpenExternalLinks(true);
         dialogLabel->setTextFormat(Qt::RichText);
     }
+    FocusChecker checker;
+    if (QLineEdit *lineEdit = dialog.findChild<QLineEdit *>()) {
+        checker.dialog = &dialog;
+        checker.lineEdit = lineEdit;
+        QTimer::singleShot(50, &checker, SLOT(check()));
+    }
 
     bool ok = dialog.exec();
     if (ok) {
@@ -81,3 +110,5 @@ QString HttpCredentialsGui::requestAppPasswordText(const Account* account)
 
 
 } // namespace OCC
+
+#include "httpcredentialsgui.moc"
