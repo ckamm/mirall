@@ -293,6 +293,18 @@ static void check_csync_pathes(void **state)
 
     rc = csync_excluded_no_ctx(csync->excludes, "/excludepath/withsubdir/foo", CSYNC_FTW_TYPE_DIR);
     assert_int_equal(rc, CSYNC_FILE_EXCLUDE_LIST);
+
+    // Check a /-containing exclude that isn't anchored
+    _csync_exclude_add( &(csync->excludes), "a/*/b" );
+
+    rc = csync_excluded_no_ctx(csync->excludes, "a/any1/b", CSYNC_FTW_TYPE_FILE);
+    assert_int_equal(rc, CSYNC_FILE_EXCLUDE_LIST);
+    rc = csync_excluded_no_ctx(csync->excludes, "/a/any2/b", CSYNC_FTW_TYPE_FILE);
+    assert_int_equal(rc, CSYNC_FILE_EXCLUDE_LIST);
+    rc = csync_excluded_no_ctx(csync->excludes, "/sub/a/any3/b", CSYNC_FTW_TYPE_FILE);
+    assert_int_equal(rc, CSYNC_FILE_EXCLUDE_LIST);
+    rc = csync_excluded_no_ctx(csync->excludes, "/sub/a/any3/b/foo", CSYNC_FTW_TYPE_FILE);
+    assert_int_equal(rc, CSYNC_FILE_EXCLUDE_LIST); // FIXME: Fails!
 }
 
 static void check_csync_is_windows_reserved_word() {

@@ -369,9 +369,39 @@ static CSYNC_EXCLUDE_TYPE _csync_excluded_common(c_strlist_t *excludes, const ch
 
         /* check if the pattern contains a / and if, compare to the whole path */
         if (strchr(pattern, '/')) {
-            rc = csync_fnmatch(pattern, path, FNM_PATHNAME);
-            if( rc == 0 ) {
-                match = type;
+            /* anchored patterns apply to the full path only */
+            if (pattern[0] == '/') {
+                rc = csync_fnmatch(pattern, path, FNM_PATHNAME);
+                if( rc == 0 ) {
+                    match = type;
+                }
+            } else {
+                /* compare the pattern against the correct number of trailing path components */
+                int components = 1;
+                char *p = pattern;
+                while (*p) {
+                    if (*p == '/')
+                        ++components;
+                    ++p;
+                }
+                size_t j = strlen(path);
+                while (components > 0) {
+                    if (path[j] == '/') {
+                        --components;
+                        if (components == 0) {
+                            ++j;
+                            break;
+                        }
+                    }
+                    if (j == 0) {
+                        break;
+                    }
+                    --j;
+                }
+                rc = csync_fnmatch(pattern, path + j, FNM_PATHNAME);
+                if( rc == 0 ) {
+                    match = type;
+                }
             }
             /* if the pattern requires a dir, but path is not, its still not excluded. */
             if (match_dirs_only && filetype != CSYNC_FTW_TYPE_DIR) {
@@ -386,6 +416,7 @@ static CSYNC_EXCLUDE_TYPE _csync_excluded_common(c_strlist_t *excludes, const ch
                 j = 1; // skip the first entry, which is bname
             }
             for (; j < path_components->count; ++j) {
+// FIXME: We also need to do the same thing here!
                 rc = csync_fnmatch(pattern, path_components->vector[j], 0);
                 if (rc == 0) {
                     match = type;
