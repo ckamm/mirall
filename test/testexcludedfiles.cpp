@@ -8,6 +8,15 @@
 #include <QtTest>
 
 #include "excludedfiles.h"
+#include "discoveryphase.h"
+
+// Include csync exclude tests to run them again with the libsync hook
+#include "csync.h"
+#include "csync_private.h"
+#define LIBSYNC_TEST
+OCC::ExcludeHookData* excludeHookDataPtr;
+#define HOOK &OCC::excluded_traversal_hook, excludeHookDataPtr
+#include "../csync/tests/csync_tests/check_csync_exclude.c"
 
 using namespace OCC;
 
@@ -42,6 +51,32 @@ private slots:
         QVERIFY(excluded.isExcluded("/a/.Trashes", "/a", keepHidden));
         QVERIFY(excluded.isExcluded("/a/foo_conflict-bar", "/a", keepHidden));
         QVERIFY(excluded.isExcluded("/a/.b", "/a", excludeHidden));
+    }
+
+    void csync_test()
+    {
+        void* state = 0;
+        setup(&state);
+
+        OCC::ExcludeHookData excludeHookData;
+        excludeHookData._csync_ctx = (CSYNC*)state;
+        excludeHookDataPtr = &excludeHookData;
+
+        check_csync_excluded_traversal(&state);
+        teardown(&state);
+    }
+
+    void csync_perf_test()
+    {
+        void* state = 0;
+        setup_init(&state);
+
+        OCC::ExcludeHookData excludeHookData;
+        excludeHookData._csync_ctx = (CSYNC*)state;
+        excludeHookDataPtr = &excludeHookData;
+
+        check_csync_excluded_performance(&state);
+        teardown(&state);
     }
 };
 

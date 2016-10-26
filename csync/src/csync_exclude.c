@@ -68,7 +68,7 @@ int _csync_exclude_add(c_strlist_t **inList, const char *string) {
  *
  * The returned string is heap-allocated and owned by the caller.
  */
-static const char *csync_exclude_expand_escapes(const char * input)
+const char *csync_exclude_expand_escapes(const char * input)
 {
     size_t i_len = strlen(input) + 1;
     char *out = c_malloc(i_len); // out can only be shorter
@@ -314,7 +314,7 @@ static CSYNC_EXCLUDE_TYPE _csync_excluded_common(c_strlist_t *excludes, const ch
 
     if (!check_leading_dirs && hook) {
         //
-        match = hook(bname, filetype, hookUserData);
+        match = hook(bname, path, filetype, hookUserData);
         goto out;
     }
 

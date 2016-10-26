@@ -641,70 +641,145 @@ void DiscoveryJob::remote_vio_closedir_hook (csync_vio_handle_t *dhandle,  void 
     }
 }
 
-static QString convertToRegexpSyntax(char *exclude)
+static QString convertToFullRegexpSyntax(QString exclude)
 {
-    //QString::fromUtf8(exclude);
-    QString s;
-    for (unsigned int i = 0; i < strlen(exclude); i++) {
-        char &c = exclude[i];
-        if (c == '*') s += ".*";
-        else if (c == '.') s += "\\.";
-        else if (c == '$') s += "\\$";
-        else if (c == '?') s += ".";
-        else s += c;
-        // FIXME: [ ] { } ( ) etc
+    QString s = QRegExp::escape(exclude).replace("\\*", "[^/]*").replace("?", "[^/]") + "$";
+    // Anchoring to the beginning if pattern starts with a /
+    if (exclude.startsWith("/")) {
+        s.prepend("^");
+    } else {
+        // we don't want "foo/bar" to match "afoo/bar"
+        s.prepend("/");
     }
-    qDebug() << s;
+    qDebug() << "Converted pattern" << exclude << "to regex" << s;
     return s;
 }
 
-CSYNC_EXCLUDE_TYPE DiscoveryJob::excluded_traversal_hook (const char *path, int filetype, void *userdata)
+static QString convertToBnameRegexpSyntax(QString exclude)
 {
-    DiscoveryJob *discoveryJob = static_cast<DiscoveryJob*>(userdata);
+    QString s = "^" + QRegExp::escape(exclude).replace("\\*", ".*").replace("?", ".") + "$";
+    qDebug() << "Converted pattern" << exclude << "to regex" << s;
+    return s;
+}
+
+CSYNC_EXCLUDE_TYPE excluded_traversal_hook(const char *bname, const char *path, int filetype, void *userdata)
+{
+    auto data = static_cast<ExcludeHookData*>(userdata);
 
     // FIXME: csync_e
 
     // FIXME file match vs directory match?
 
-    qDebug() << discoveryJob->_exclude_traversel_regexp_exclude.isValid() << path << discoveryJob->_exclude_traversel_regexp_exclude.errorString();
+    if (data->bname.exclude.pattern().length() == 0) {
 
-    if (discoveryJob->_exclude_traversel_regexp_exclude.pattern().length() == 0) {
+        // initialize to never-matching regexp
+        QString never_match_regex = "a^";
+        QString bname = never_match_regex;
+        QString bname_remove = never_match_regex;
+        QString bname_dir = never_match_regex;
+        QString bname_remove_dir = never_match_regex;
+        QString full = never_match_regex;
+        QString full_remove = never_match_regex;
+        QString full_dir = never_match_regex;
+        QString full_remove_dir = never_match_regex;
+
         // env QT_ENABLE_REGEXP_JIT 1
-        discoveryJob->_exclude_traversel_regexp_exclude.setPatternOptions(QRegularExpression::OptimizeOnFirstUsageOption);
-        discoveryJob->_exclude_traversel_regexp_exclude_and_remove.setPatternOptions(QRegularExpression::OptimizeOnFirstUsageOption);
-        QString _exclude_traversel_regexp_exclude;
-        QString _exclude_traversel_regexp_exclude_and_remove;
-        for (unsigned int i = 0; i < discoveryJob->_csync_ctx->excludes->count; i++) {
-            char *exclude = discoveryJob->_csync_ctx->excludes->vector[i];
-            QString *builderToUse = & _exclude_traversel_regexp_exclude;
-            if (exclude[0] == '\n') continue; // empty line
-            if (exclude[0] == '\r') continue; // empty line
-            if (exclude[0] == ']'){
-                exclude++;
-                builderToUse = &_exclude_traversel_regexp_exclude_and_remove;
+
+        auto append = [&](QString* regex, QString pattern) {
+            if (!regex)
+                return;
+            if (!regex->isEmpty())
+                regex->append("|");
+            regex->append(pattern);
+        };
+
+        size_t excludesCount = 0;
+        if (data->_csync_ctx->excludes)
+            excludesCount = data->_csync_ctx->excludes->count;
+        for (unsigned int i = 0; i < excludesCount; i++) {
+            auto pattern = QString::fromUtf8(data->_csync_ctx->excludes->vector[i]);
+            if (pattern[0] == '\n') continue; // empty line
+            if (pattern[0] == '\r') continue; // empty line
+
+            bool dirOnly = pattern.endsWith("/");
+            if (dirOnly)
+                pattern = pattern.left(pattern.size() - 1);
+
+            bool mayRemove = pattern.startsWith("]");
+            if (mayRemove)
+                pattern = pattern.mid(1);
+
+            if (pattern.contains("/")) {
+                QString regexp = convertToFullRegexpSyntax(pattern);
+                append(&full_dir, regexp);
+                if (!dirOnly)
+                    append(&full, regexp);
+                if (mayRemove) {
+                    append(&full_remove_dir, regexp);
+                    if (!dirOnly)
+                        append(&full_remove, regexp);
+                }
+            } else {
+                QString regexp = convertToBnameRegexpSyntax(pattern);
+                append(&bname_dir, regexp);
+                if (!dirOnly)
+                    append(&bname, regexp);
+                if (mayRemove) {
+                    append(&bname_remove_dir, regexp);
+                    if (!dirOnly)
+                        append(&bname_remove, regexp);
+                }
             }
-            if (builderToUse->size() > 0) {
-                builderToUse->append("|");
-            }
-            builderToUse->append(convertToRegexpSyntax(exclude));
         }
-        qDebug() << _exclude_traversel_regexp_exclude;
-        qDebug() << _exclude_traversel_regexp_exclude_and_remove;
-        discoveryJob->_exclude_traversel_regexp_exclude.setPattern(_exclude_traversel_regexp_exclude);
-        discoveryJob->_exclude_traversel_regexp_exclude_and_remove.setPattern(_exclude_traversel_regexp_exclude_and_remove);
+
+        qDebug() << full << full_remove << full_dir << full_remove_dir;
+        qDebug() << bname << bname_remove << bname_dir << bname_remove_dir;
+        data->bname.exclude.setPattern(bname);
+        data->bname.exclude_and_remove.setPattern(bname_remove);
+        data->bname_dir.exclude.setPattern(bname_dir);
+        data->bname_dir.exclude_and_remove.setPattern(bname_remove_dir);
+        data->full.exclude.setPattern(full);
+        data->full.exclude_and_remove.setPattern(full_remove);
+        data->full_dir.exclude.setPattern(full_dir);
+        data->full_dir.exclude_and_remove.setPattern(full_remove_dir);
+
+        data->bname.exclude.optimize();
+        data->bname.exclude_and_remove.optimize();
+        data->bname_dir.exclude.optimize();
+        data->bname_dir.exclude_and_remove.optimize();
+        data->full.exclude.optimize();
+        data->full.exclude_and_remove.optimize();
+        data->full_dir.exclude.optimize();
+        data->full_dir.exclude_and_remove.optimize();
     }
 
-    QString p = QString::fromUtf8(path);
-    if (discoveryJob->_exclude_traversel_regexp_exclude.match(p).hasMatch()) {
-        qDebug() << "WOULD EXCLUDE";
-        return CSYNC_FILE_EXCLUDE_LIST;
+    //qDebug() << "EXCLUDE? " << path;
+
+    auto match = [](ExcludeHookData::Expressions & expr, const QString& str) {
+      if (expr.exclude.match(str).hasMatch()) {
+          if (expr.exclude_and_remove.match(str).hasMatch()) {
+              return CSYNC_FILE_EXCLUDE_AND_REMOVE;
+          }
+          return CSYNC_FILE_EXCLUDE_LIST;
+      }
+      return CSYNC_NOT_EXCLUDED;
+    };
+
+    if (filetype == CSYNC_FTW_TYPE_DIR) {
+        QString b = QString::fromUtf8(bname);
+        if (const auto excl = match(data->bname_dir, b))
+            return excl;
+        QString p = QString::fromUtf8(path);
+        if (const auto excl = match(data->full_dir, p))
+            return excl;
+    } else {
+        QString b = QString::fromUtf8(bname);
+        if (const auto excl = match(data->bname, b))
+            return excl;
+        QString p = QString::fromUtf8(path);
+        if (const auto excl = match(data->full, p))
+            return excl;
     }
-    // FIXME
-    if (discoveryJob->_exclude_traversel_regexp_exclude_and_remove.match(p).hasMatch()) {
-        qDebug() << "WOULD EXCLUDE AND REMOVE";
-        return CSYNC_FILE_EXCLUDE_AND_REMOVE;
-    }
-    // FIXME
 
     return CSYNC_NOT_EXCLUDED;
 }
@@ -723,7 +798,7 @@ void DiscoveryJob::start() {
     _csync_ctx->callbacks.vio_userdata = this;
 
     _csync_ctx->callbacks.excluded_traversal_hook = excluded_traversal_hook;
-    _csync_ctx->callbacks.excluded_traversal_userdata = this;
+    _csync_ctx->callbacks.excluded_traversal_userdata = &_excludeHookData;
 
     csync_set_log_callback(_log_callback);
     csync_set_log_level(_log_level);

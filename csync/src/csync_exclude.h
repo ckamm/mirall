@@ -43,7 +43,7 @@ int OCSYNC_EXPORT _csync_exclude_add(c_strlist_t **inList, const char *string);
 
 // Hook from mirall
 typedef CSYNC_EXCLUDE_TYPE (*csync_exclude_traversal_hook) (
-        const char *path, int filetype, void *userData);
+        const char *bname, const char *path, int filetype, void *userData);
 
 /**
  * @brief Load exclude list
@@ -87,6 +87,8 @@ CSYNC_EXCLUDE_TYPE OCSYNC_EXPORT csync_excluded_no_ctx(c_strlist_t *excludes, co
  * @return true if file is reserved, false otherwise
  */
 bool csync_is_windows_reserved_word(const char *file_name);
+
+const char *csync_exclude_expand_escapes(const char * input);
 
 #endif /* _CSYNC_EXCLUDE_H */
 /* vim: set ft=c.doxygen ts=8 sw=2 et cindent: */

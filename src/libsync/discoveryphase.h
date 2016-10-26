@@ -29,6 +29,24 @@ namespace OCC {
 
 class Account;
 
+CSYNC_EXCLUDE_TYPE excluded_traversal_hook(const char *bname, const char *path, int filetype, void *userdata);
+
+struct ExcludeHookData
+{
+    CSYNC              *_csync_ctx;
+
+    struct Expressions
+    {
+        QRegularExpression exclude;
+        QRegularExpression exclude_and_remove;
+    };
+
+    Expressions bname;
+    Expressions bname_dir;
+    Expressions full;
+    Expressions full_dir;
+};
+
 /**
  * The Discovery Phase was once called "update" phase in csync terms.
  * Its goal is to look at the files in one of the remote and check compared to the db
@@ -195,10 +213,7 @@ class DiscoveryJob : public QObject {
     QMutex _vioMutex;
     QWaitCondition _vioWaitCondition;
 
-    QRegularExpression _exclude_traversel_regexp_exclude;
-    QRegularExpression _exclude_traversel_regexp_exclude_and_remove;
-    static CSYNC_EXCLUDE_TYPE excluded_traversal_hook (const char *path, int filetype, void *userdata);
-
+    ExcludeHookData _excludeHookData;
 
 public:
     explicit DiscoveryJob(CSYNC *ctx, QObject* parent = 0)
@@ -208,6 +223,7 @@ public:
         _log_callback = csync_get_log_callback();
         _log_level = csync_get_log_level();
         _log_userdata = csync_get_log_userdata();
+        _excludeHookData._csync_ctx = ctx;
     }
 
     QStringList _selectiveSyncBlackList;

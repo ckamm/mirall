@@ -22,10 +22,26 @@
 #include <time.h>
 #include <sys/time.h>
 
-#include "torture.h"
+#include "../torture.h"
 
 #define CSYNC_TEST 1
+#ifdef LIBSYNC_TEST
+#undef assert_int_equal
+#define assert_int_equal(a, b) QCOMPARE((int)a, (int)b)
+#undef assert_int_not_equal
+#define assert_int_not_equal(a, b) QVERIFY(a != b)
+#undef assert_string_equal
+#define assert_string_equal(a, b) QCOMPARE(a, b)
+#undef assert_true
+#define assert_true(a) QVERIFY(a)
+#undef assert_false
+#define assert_false(a) QVERIFY(!a)
+#undef run_tests
+#define run_tests(a) ((void)a, 0)
+#else
 #include "csync_exclude.c"
+#define HOOK 0, 0
+#endif
 
 #define EXCLUDE_LIST_FILE SOURCEDIR"/../sync-exclude.lst"
 
@@ -62,7 +78,7 @@ static void setup_init(void **state) {
 }
 
 static void teardown(void **state) {
-    CSYNC *csync = *state;
+    CSYNC *csync = (CSYNC*)*state;
     int rc;
 
     rc = csync_destroy(csync);
@@ -78,14 +94,14 @@ static void teardown(void **state) {
 
 static void check_csync_exclude_add(void **state)
 {
-  CSYNC *csync = *state;
+  CSYNC *csync = (CSYNC*)*state;
   _csync_exclude_add(&(csync->excludes), "/tmp/check_csync1/*");
   assert_string_equal(csync->excludes->vector[0], "/tmp/check_csync1/*");
 }
 
 static void check_csync_exclude_load(void **state)
 {
-    CSYNC *csync = *state;
+    CSYNC *csync = (CSYNC*)*state;
     int rc;
 
     rc = csync_exclude_load(EXCLUDE_LIST_FILE, &(csync->excludes) );
@@ -97,7 +113,7 @@ static void check_csync_exclude_load(void **state)
 
 static void check_csync_excluded(void **state)
 {
-    CSYNC *csync = *state;
+    CSYNC *csync = (CSYNC*)*state;
     int rc;
 
     rc = csync_excluded_no_ctx(csync->excludes, "", CSYNC_FTW_TYPE_FILE);
@@ -197,57 +213,56 @@ static void check_csync_excluded(void **state)
 
 static void check_csync_excluded_traversal(void **state)
 {
-    CSYNC *csync = *state;
+    CSYNC *csync = (CSYNC*)*state;
     int rc;
 
     _csync_exclude_add( &(csync->excludes), "/exclude" );
+    _csync_exclude_add( &(csync->excludes), "excldir/" );
+    _csync_exclude_add(&csync->excludes, "/excludepath/withsubdir");
 
     /* Check toplevel dir, the pattern only works for toplevel dir. */
-    rc = csync_excluded_traversal(csync->excludes, "/exclude", CSYNC_FTW_TYPE_DIR);
+    rc = csync_excluded_traversal(csync->excludes, "/exclude", CSYNC_FTW_TYPE_DIR, HOOK);
     assert_int_equal(rc, CSYNC_FILE_EXCLUDE_LIST);
 
-    rc = csync_excluded_traversal(csync->excludes, "/foo/exclude", CSYNC_FTW_TYPE_DIR);
+    rc = csync_excluded_traversal(csync->excludes, "/foo/exclude", CSYNC_FTW_TYPE_DIR, HOOK);
     assert_int_equal(rc, CSYNC_NOT_EXCLUDED);
 
     /* check for a file called exclude. Must still work */
-    rc = csync_excluded_traversal(csync->excludes, "/exclude", CSYNC_FTW_TYPE_FILE);
+    rc = csync_excluded_traversal(csync->excludes, "/exclude", CSYNC_FTW_TYPE_FILE, HOOK);
     assert_int_equal(rc, CSYNC_FILE_EXCLUDE_LIST);
 
-    rc = csync_excluded_traversal(csync->excludes, "/foo/exclude", CSYNC_FTW_TYPE_FILE);
+    rc = csync_excluded_traversal(csync->excludes, "/foo/exclude", CSYNC_FTW_TYPE_FILE, HOOK);
     assert_int_equal(rc, CSYNC_NOT_EXCLUDED);
 
     /* Add an exclude for directories only: excl/ */
-    _csync_exclude_add( &(csync->excludes), "excl/" );
-    rc = csync_excluded_traversal(csync->excludes, "/excl", CSYNC_FTW_TYPE_DIR);
+    rc = csync_excluded_traversal(csync->excludes, "/excldir", CSYNC_FTW_TYPE_DIR, HOOK);
     assert_int_equal(rc, CSYNC_FILE_EXCLUDE_LIST);
 
-    rc = csync_excluded_traversal(csync->excludes, "meep/excl", CSYNC_FTW_TYPE_DIR);
+    rc = csync_excluded_traversal(csync->excludes, "meep/excldir", CSYNC_FTW_TYPE_DIR, HOOK);
     assert_int_equal(rc, CSYNC_FILE_EXCLUDE_LIST);
 
-    rc = csync_excluded_traversal(csync->excludes, "meep/excl/file", CSYNC_FTW_TYPE_FILE);
+    rc = csync_excluded_traversal(csync->excludes, "meep/excldir/file", CSYNC_FTW_TYPE_FILE, HOOK);
     assert_int_equal(rc, CSYNC_NOT_EXCLUDED); // because leading dirs aren't checked!
 
-    rc = csync_excluded_traversal(csync->excludes, "/excl", CSYNC_FTW_TYPE_FILE);
+    rc = csync_excluded_traversal(csync->excludes, "/excldir", CSYNC_FTW_TYPE_FILE, HOOK);
     assert_int_equal(rc, CSYNC_NOT_EXCLUDED);
 
-    _csync_exclude_add(&csync->excludes, "/excludepath/withsubdir");
-
-    rc = csync_excluded_traversal(csync->excludes, "/excludepath/withsubdir", CSYNC_FTW_TYPE_DIR);
+    rc = csync_excluded_traversal(csync->excludes, "/excludepath/withsubdir", CSYNC_FTW_TYPE_DIR, HOOK);
     assert_int_equal(rc, CSYNC_FILE_EXCLUDE_LIST);
 
-    rc = csync_excluded_traversal(csync->excludes, "/excludepath/withsubdir", CSYNC_FTW_TYPE_FILE);
+    rc = csync_excluded_traversal(csync->excludes, "/excludepath/withsubdir", CSYNC_FTW_TYPE_FILE, HOOK);
     assert_int_equal(rc, CSYNC_FILE_EXCLUDE_LIST);
 
-    rc = csync_excluded_traversal(csync->excludes, "/excludepath/withsubdir2", CSYNC_FTW_TYPE_DIR);
+    rc = csync_excluded_traversal(csync->excludes, "/excludepath/withsubdir2", CSYNC_FTW_TYPE_DIR, HOOK);
     assert_int_equal(rc, CSYNC_NOT_EXCLUDED);
 
-    rc = csync_excluded_traversal(csync->excludes, "/excludepath/withsubdir/foo", CSYNC_FTW_TYPE_DIR);
+    rc = csync_excluded_traversal(csync->excludes, "/excludepath/withsubdir/foo", CSYNC_FTW_TYPE_DIR, HOOK);
     assert_int_equal(rc, CSYNC_NOT_EXCLUDED); // because leading dirs aren't checked!
 }
 
 static void check_csync_pathes(void **state)
 {
-    CSYNC *csync = *state;
+    CSYNC *csync = (CSYNC*)*state;
     int rc;
 
     _csync_exclude_add( &(csync->excludes), "/exclude" );
@@ -295,7 +310,8 @@ static void check_csync_pathes(void **state)
     assert_int_equal(rc, CSYNC_FILE_EXCLUDE_LIST);
 }
 
-static void check_csync_is_windows_reserved_word() {
+static void check_csync_is_windows_reserved_word(void **state) {
+    (void) state;
     assert_true(csync_is_windows_reserved_word("CON"));
     assert_true(csync_is_windows_reserved_word("con"));
     assert_true(csync_is_windows_reserved_word("CON."));
@@ -315,7 +331,7 @@ static void check_csync_is_windows_reserved_word() {
 
 static void check_csync_excluded_performance(void **state)
 {
-    CSYNC *csync = *state;
+    CSYNC *csync = (CSYNC*)*state;
 
     const int N = 10000;
     int totalRc = 0;
@@ -340,13 +356,15 @@ static void check_csync_excluded_performance(void **state)
         printf("csync_excluded: %f ms per call\n", perCallMs);
     }
 
+    // Run once to get init of hooks outside of testing loop
+    totalRc += csync_excluded_traversal(csync->excludes, "/this/is/quite/a/long/path/with/many/components", CSYNC_FTW_TYPE_DIR, HOOK);
     {
         struct timeval before, after;
         gettimeofday(&before, 0);
 
         for (i = 0; i < N; ++i) {
-            totalRc += csync_excluded_traversal(csync->excludes, "/this/is/quite/a/long/path/with/many/components", CSYNC_FTW_TYPE_DIR);
-            totalRc += csync_excluded_traversal(csync->excludes, "/1/2/3/4/5/6/7/8/9/10/11/12/13/14/15/16/17/18/19/20/21/22/23/24/25/26/27/29", CSYNC_FTW_TYPE_FILE);
+            totalRc += csync_excluded_traversal(csync->excludes, "/this/is/quite/a/long/path/with/many/components", CSYNC_FTW_TYPE_DIR, HOOK);
+            totalRc += csync_excluded_traversal(csync->excludes, "/1/2/3/4/5/6/7/8/9/10/11/12/13/14/15/16/17/18/19/20/21/22/23/24/25/26/27/29", CSYNC_FTW_TYPE_FILE, HOOK);
         }
         assert_int_equal(totalRc, CSYNC_NOT_EXCLUDED); // mainly to avoid optimization
 
@@ -384,7 +402,7 @@ int torture_run_tests(void)
         unit_test_setup_teardown(check_csync_exclude_add, setup, teardown),
         unit_test_setup_teardown(check_csync_exclude_load, setup, teardown),
         unit_test_setup_teardown(check_csync_excluded, setup_init, teardown),
-        unit_test_setup_teardown(check_csync_excluded_traversal, setup_init, teardown),
+        unit_test_setup_teardown(check_csync_excluded_traversal, setup, teardown),
         unit_test_setup_teardown(check_csync_pathes, setup_init, teardown),
         unit_test_setup_teardown(check_csync_is_windows_reserved_word, setup_init, teardown),
         unit_test_setup_teardown(check_csync_excluded_performance, setup_init, teardown),
