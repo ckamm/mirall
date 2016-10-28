@@ -59,7 +59,7 @@ private slots:
         setup(&state);
 
         OCC::ExcludeHookData excludeHookData;
-        excludeHookData._csync_ctx = (CSYNC*)state;
+        excludeHookData.excludes = &((CSYNC*)state)->excludes;
         excludeHookDataPtr = &excludeHookData;
 
         check_csync_excluded_traversal(&state);
@@ -72,7 +72,7 @@ private slots:
         setup_init(&state);
 
         OCC::ExcludeHookData excludeHookData;
-        excludeHookData._csync_ctx = (CSYNC*)state;
+        excludeHookData.excludes = &((CSYNC*)state)->excludes;
         excludeHookDataPtr = &excludeHookData;
 
         check_csync_excluded_performance(&state);

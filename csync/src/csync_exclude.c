@@ -312,9 +312,9 @@ static CSYNC_EXCLUDE_TYPE _csync_excluded_common(c_strlist_t *excludes, const ch
     }
 
 
-    if (!check_leading_dirs && hook) {
+    if (hook) {
         //
-        match = hook(bname, path, filetype, hookUserData);
+        match = hook(bname, path, filetype, check_leading_dirs, hookUserData);
         goto out;
     }
 
@@ -421,11 +421,10 @@ static CSYNC_EXCLUDE_TYPE _csync_excluded_common(c_strlist_t *excludes, const ch
 }
 
 CSYNC_EXCLUDE_TYPE csync_excluded_traversal(c_strlist_t *excludes, const char *path, int filetype, csync_exclude_traversal_hook hook, void *hookUserData) {
- //   return ctx->callbacks.excluded_traversal_hook(path, filetype);
   return _csync_excluded_common(excludes, path, filetype, false, hook, hookUserData);
 }
 
-CSYNC_EXCLUDE_TYPE csync_excluded_no_ctx(c_strlist_t *excludes, const char *path, int filetype) {
-  return _csync_excluded_common(excludes, path, filetype, true, 0, 0);
+CSYNC_EXCLUDE_TYPE csync_excluded_no_ctx(c_strlist_t *excludes, const char *path, int filetype, csync_exclude_traversal_hook hook, void *hookUserData) {
+  return _csync_excluded_common(excludes, path, filetype, true, hook, hookUserData);
 }
 

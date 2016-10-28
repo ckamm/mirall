@@ -27,6 +27,7 @@ using namespace OCC;
 ExcludedFiles::ExcludedFiles(c_strlist_t** excludesPtr)
     : _excludesPtr(excludesPtr)
 {
+    _excludeHookData.excludes = excludesPtr;
 }
 
 ExcludedFiles::~ExcludedFiles()
@@ -50,6 +51,7 @@ void ExcludedFiles::addExcludeFilePath(const QString& path)
 void ExcludedFiles::addExcludeExpr(const QString &expr)
 {
     _csync_exclude_add(_excludesPtr, expr.toLatin1().constData());
+    _excludeHookData.bname.exclude.setPattern("");
 }
 #endif
 
@@ -102,5 +104,5 @@ bool ExcludedFiles::isExcluded(
         relativePath.chop(1);
     }
 
-    return csync_excluded_no_ctx(*_excludesPtr, relativePath.toUtf8(), type) != CSYNC_NOT_EXCLUDED;
+    return csync_excluded_no_ctx(*_excludesPtr, relativePath.toUtf8(), type, &excluded_traversal_hook, &_excludeHookData) != CSYNC_NOT_EXCLUDED;
 }

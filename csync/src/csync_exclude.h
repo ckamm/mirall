@@ -43,7 +43,7 @@ int OCSYNC_EXPORT _csync_exclude_add(c_strlist_t **inList, const char *string);
 
 // Hook from mirall
 typedef CSYNC_EXCLUDE_TYPE (*csync_exclude_traversal_hook) (
-        const char *bname, const char *path, int filetype, void *userData);
+        const char *bname, const char *path, int filetype, bool check_leading_dirs, void *userData);
 
 /**
  * @brief Load exclude list
@@ -79,7 +79,7 @@ CSYNC_EXCLUDE_TYPE csync_excluded_traversal(c_strlist_t *excludes, const char *p
  * @param filetype
  * @return
  */
-CSYNC_EXCLUDE_TYPE OCSYNC_EXPORT csync_excluded_no_ctx(c_strlist_t *excludes, const char *path, int filetype);
+CSYNC_EXCLUDE_TYPE OCSYNC_EXPORT csync_excluded_no_ctx(c_strlist_t *excludes, const char *path, int filetype, csync_exclude_traversal_hook hook, void *hookUserData);
 
 /**
  * @brief Checks if filename is considered reserved by Windows

@@ -643,7 +643,7 @@ void DiscoveryJob::remote_vio_closedir_hook (csync_vio_handle_t *dhandle,  void 
 
 static QString convertToFullRegexpSyntax(QString exclude)
 {
-    QString s = QRegExp::escape(exclude).replace("\\*", "[^/]*").replace("?", "[^/]") + "$";
+    QString s = QRegExp::escape(exclude).replace("\\*", "[^/]*").replace("?", "[^/]");
     // Anchoring to the beginning if pattern starts with a /
     if (exclude.startsWith("/")) {
         s.prepend("^");
@@ -651,18 +651,22 @@ static QString convertToFullRegexpSyntax(QString exclude)
         // we don't want "foo/bar" to match "afoo/bar"
         s.prepend("/");
     }
+    if (!exclude.endsWith("/"))
+        s.append("/?");
     qDebug() << "Converted pattern" << exclude << "to regex" << s;
     return s;
 }
 
 static QString convertToBnameRegexpSyntax(QString exclude)
 {
-    QString s = "^" + QRegExp::escape(exclude).replace("\\*", ".*").replace("?", ".") + "$";
+    QString s = QRegExp::escape(exclude).replace("\\*", ".*").replace("?", ".");
+    if (!exclude.endsWith("/"))
+        s.append("/?");
     qDebug() << "Converted pattern" << exclude << "to regex" << s;
     return s;
 }
 
-CSYNC_EXCLUDE_TYPE excluded_traversal_hook(const char *bname, const char *path, int filetype, void *userdata)
+CSYNC_EXCLUDE_TYPE excluded_traversal_hook(const char *bname, const char *path, int filetype, bool check_leading_dirs, void *userdata)
 {
     auto data = static_cast<ExcludeHookData*>(userdata);
 
@@ -676,12 +680,8 @@ CSYNC_EXCLUDE_TYPE excluded_traversal_hook(const char *bname, const char *path, 
         QString never_match_regex = "a^";
         QString bname = never_match_regex;
         QString bname_remove = never_match_regex;
-        QString bname_dir = never_match_regex;
-        QString bname_remove_dir = never_match_regex;
         QString full = never_match_regex;
         QString full_remove = never_match_regex;
-        QString full_dir = never_match_regex;
-        QString full_remove_dir = never_match_regex;
 
         // env QT_ENABLE_REGEXP_JIT 1
 
@@ -694,63 +694,50 @@ CSYNC_EXCLUDE_TYPE excluded_traversal_hook(const char *bname, const char *path, 
         };
 
         size_t excludesCount = 0;
-        if (data->_csync_ctx->excludes)
-            excludesCount = data->_csync_ctx->excludes->count;
+        if (*data->excludes)
+            excludesCount = (*data->excludes)->count;
         for (unsigned int i = 0; i < excludesCount; i++) {
-            auto pattern = QString::fromUtf8(data->_csync_ctx->excludes->vector[i]);
+            auto pattern = QString::fromUtf8((*data->excludes)->vector[i]);
             if (pattern[0] == '\n') continue; // empty line
             if (pattern[0] == '\r') continue; // empty line
-
-            bool dirOnly = pattern.endsWith("/");
-            if (dirOnly)
-                pattern = pattern.left(pattern.size() - 1);
 
             bool mayRemove = pattern.startsWith("]");
             if (mayRemove)
                 pattern = pattern.mid(1);
 
-            if (pattern.contains("/")) {
+            // has a slash that's not at the end?
+            int slashIdx = pattern.indexOf("/");
+            if (slashIdx != -1 && slashIdx < pattern.size() - 1) {
                 QString regexp = convertToFullRegexpSyntax(pattern);
-                append(&full_dir, regexp);
-                if (!dirOnly)
-                    append(&full, regexp);
+                append(&full, regexp);
                 if (mayRemove) {
-                    append(&full_remove_dir, regexp);
-                    if (!dirOnly)
-                        append(&full_remove, regexp);
+                    append(&full_remove, regexp);
                 }
             } else {
                 QString regexp = convertToBnameRegexpSyntax(pattern);
-                append(&bname_dir, regexp);
-                if (!dirOnly)
-                    append(&bname, regexp);
+                append(&bname, regexp);
                 if (mayRemove) {
-                    append(&bname_remove_dir, regexp);
-                    if (!dirOnly)
-                        append(&bname_remove, regexp);
+                    append(&bname_remove, regexp);
                 }
             }
         }
 
-        qDebug() << full << full_remove << full_dir << full_remove_dir;
-        qDebug() << bname << bname_remove << bname_dir << bname_remove_dir;
-        data->bname.exclude.setPattern(bname);
-        data->bname.exclude_and_remove.setPattern(bname_remove);
-        data->bname_dir.exclude.setPattern(bname_dir);
-        data->bname_dir.exclude_and_remove.setPattern(bname_remove_dir);
-        data->full.exclude.setPattern(full);
-        data->full.exclude_and_remove.setPattern(full_remove);
-        data->full_dir.exclude.setPattern(full_dir);
-        data->full_dir.exclude_and_remove.setPattern(full_remove_dir);
+        qDebug() << full << full_remove;
+        qDebug() << bname << bname_remove;
+        data->bname.exclude.setPattern("^(?:" + bname + ")$");
+        data->bname.exclude_and_remove.setPattern("^(?:" + bname_remove + ")$");
+        data->full.exclude.setPattern("(?:" + full + ")$");
+        data->full.exclude_and_remove.setPattern("(?:" + full_remove + ")$");
+        // not correct for patterns with a trailing slash like "foo/" - they wouldn't match "foo/bar"
+        data->full_and_leading.exclude.setPattern("(?:" + bname + "|" + full + ")(?:$|/)");
+        data->full_and_leading.exclude_and_remove.setPattern("(?:" + bname_remove + "|" + full_remove + ")(?:$|/)");
 
         data->bname.exclude.optimize();
         data->bname.exclude_and_remove.optimize();
-        data->bname_dir.exclude.optimize();
-        data->bname_dir.exclude_and_remove.optimize();
         data->full.exclude.optimize();
         data->full.exclude_and_remove.optimize();
-        data->full_dir.exclude.optimize();
-        data->full_dir.exclude_and_remove.optimize();
+        data->full_and_leading.exclude.optimize();
+        data->full_and_leading.exclude_and_remove.optimize();
     }
 
     //qDebug() << "EXCLUDE? " << path;
@@ -765,19 +752,22 @@ CSYNC_EXCLUDE_TYPE excluded_traversal_hook(const char *bname, const char *path, 
       return CSYNC_NOT_EXCLUDED;
     };
 
-    if (filetype == CSYNC_FTW_TYPE_DIR) {
+    if (!check_leading_dirs) {
         QString b = QString::fromUtf8(bname);
-        if (const auto excl = match(data->bname_dir, b))
-            return excl;
-        QString p = QString::fromUtf8(path);
-        if (const auto excl = match(data->full_dir, p))
-            return excl;
-    } else {
-        QString b = QString::fromUtf8(bname);
+        if (filetype == CSYNC_FTW_TYPE_DIR)
+            b += "/";
         if (const auto excl = match(data->bname, b))
             return excl;
         QString p = QString::fromUtf8(path);
+        if (filetype == CSYNC_FTW_TYPE_DIR)
+            p += "/";
         if (const auto excl = match(data->full, p))
+            return excl;
+    } else {
+        QString p = QString::fromUtf8(path);
+        if (filetype == CSYNC_FTW_TYPE_DIR)
+            p += "/";
+        if (const auto excl = match(data->full_and_leading, p))
             return excl;
     }
 

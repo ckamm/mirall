@@ -25,6 +25,8 @@ extern "C" {
 #include "csync_exclude.h" // for CSYNC_EXCLUDE_TYPE
 }
 
+#include "discoveryphase.h"
+
 namespace OCC {
 
 /**
@@ -72,6 +74,7 @@ private:
     // but the pointer can be in a csync_context so that it can itself also query the list.
     c_strlist_t** _excludesPtr;
     QSet<QString> _excludeFiles;
+    mutable ExcludeHookData _excludeHookData;
 };
 
 } // namespace OCC

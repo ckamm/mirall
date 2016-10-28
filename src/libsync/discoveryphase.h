@@ -25,15 +25,17 @@
 #include <QLinkedList>
 #include <QRegularExpression>
 
+#include "csync_private.h"
+
 namespace OCC {
 
 class Account;
 
-CSYNC_EXCLUDE_TYPE excluded_traversal_hook(const char *bname, const char *path, int filetype, void *userdata);
+CSYNC_EXCLUDE_TYPE excluded_traversal_hook(const char *bname, const char *path, int filetype, bool check_leading_dirs, void *userdata);
 
 struct ExcludeHookData
 {
-    CSYNC              *_csync_ctx;
+    c_strlist_t** excludes;
 
     struct Expressions
     {
@@ -42,9 +44,8 @@ struct ExcludeHookData
     };
 
     Expressions bname;
-    Expressions bname_dir;
     Expressions full;
-    Expressions full_dir;
+    Expressions full_and_leading;
 };
 
 /**
@@ -223,7 +224,7 @@ public:
         _log_callback = csync_get_log_callback();
         _log_level = csync_get_log_level();
         _log_userdata = csync_get_log_userdata();
-        _excludeHookData._csync_ctx = ctx;
+        _excludeHookData.excludes = &ctx->excludes;
     }
 
     QStringList _selectiveSyncBlackList;
