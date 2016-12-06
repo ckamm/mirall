@@ -51,7 +51,7 @@ void ExcludedFiles::addExcludeFilePath(const QString& path)
 void ExcludedFiles::addExcludeExpr(const QString &expr)
 {
     _csync_exclude_add(_excludesPtr, expr.toLatin1().constData());
-    _excludeHookData.bname.exclude.setPattern("");
+    _excludeHookData.reset();
 }
 #endif
 
@@ -59,6 +59,8 @@ bool ExcludedFiles::reloadExcludes()
 {
     c_strlist_destroy(*_excludesPtr);
     *_excludesPtr = NULL;
+
+    _excludeHookData.reset();
 
     bool success = true;
     foreach (const QString& file, _excludeFiles) {

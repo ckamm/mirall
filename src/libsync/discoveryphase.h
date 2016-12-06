@@ -46,6 +46,12 @@ struct ExcludeHookData
     Expressions bname;
     Expressions full;
     Expressions full_and_leading;
+
+    void reset()
+    {
+        // Must relate to the cache-check in the hook
+        bname.exclude = QRegularExpression();
+    }
 };
 
 /**
