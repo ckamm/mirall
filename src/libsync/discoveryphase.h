@@ -31,7 +31,7 @@ namespace OCC {
 
 class Account;
 
-CSYNC_EXCLUDE_TYPE excluded_traversal_hook(const char *bname, const char *path, int filetype, bool check_leading_dirs, void *userdata);
+CSYNC_EXCLUDE_TYPE OWNCLOUDSYNC_EXPORT excluded_traversal_hook(const char *bname, const char *path, int filetype, bool check_leading_dirs, void *userdata);
 
 struct ExcludeHookData
 {

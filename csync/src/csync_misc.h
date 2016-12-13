@@ -36,7 +36,11 @@
 #define FNM_CASEFOLD    (1 << 4) /* Compare without regard to case.  */
 #endif
 
-int csync_fnmatch(const char *pattern, const char *name, int flags);
+int
+#ifdef WITH_UNIT_TESTING
+OCSYNC_EXPORT
+#endif
+csync_fnmatch(const char *pattern, const char *name, int flags);
 
 /**
  * @brief csync_errno_to_status - errno to csync status code

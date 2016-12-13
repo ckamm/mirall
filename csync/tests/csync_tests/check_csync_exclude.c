@@ -43,7 +43,7 @@
 #define HOOK 0, 0
 #endif
 
-#define EXCLUDE_LIST_FILE SOURCEDIR"/../sync-exclude.lst"
+#define EXCLUDE_LIST_FILE "F:\\runenv-master\\sync-exclude.lst"
 
 static void setup(void **state) {
     CSYNC *csync;

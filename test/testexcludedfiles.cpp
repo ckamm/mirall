@@ -15,7 +15,13 @@
 #include "csync_private.h"
 #define LIBSYNC_TEST
 OCC::ExcludeHookData* excludeHookDataPtr;
+
+// Regex enabled
 #define HOOK &OCC::excluded_traversal_hook, excludeHookDataPtr
+
+// Regex disabled
+//#define HOOK 0, 0
+
 #include "../csync/tests/csync_tests/check_csync_exclude.c"
 
 using namespace OCC;
@@ -53,18 +59,18 @@ private slots:
         QVERIFY(excluded.isExcluded("/a/.b", "/a", excludeHidden));
     }
 
-    void csync_test()
-    {
-        void* state = 0;
-        setup(&state);
+//    void csync_test()
+//    {
+//        void* state = 0;
+//        setup(&state);
 
-        OCC::ExcludeHookData excludeHookData;
-        excludeHookData.excludes = &((CSYNC*)state)->excludes;
-        excludeHookDataPtr = &excludeHookData;
+//        OCC::ExcludeHookData excludeHookData;
+//        excludeHookData.excludes = &((CSYNC*)state)->excludes;
+//        excludeHookDataPtr = &excludeHookData;
 
-        check_csync_excluded_traversal(&state);
-        teardown(&state);
-    }
+//        check_csync_excluded_traversal(&state);
+//        teardown(&state);
+//    }
 
     void csync_perf_test()
     {

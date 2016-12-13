@@ -732,12 +732,14 @@ CSYNC_EXCLUDE_TYPE excluded_traversal_hook(const char *bname, const char *path, 
         data->full_and_leading.exclude.setPattern("(?:" + bname + "|" + full + ")(?:$|/)");
         data->full_and_leading.exclude_and_remove.setPattern("(?:" + bname_remove + "|" + full_remove + ")(?:$|/)");
 
+#if QT_VERSION >= QT_VERSION_CHECK(5, 4, 0)
         data->bname.exclude.optimize();
         data->bname.exclude_and_remove.optimize();
         data->full.exclude.optimize();
         data->full.exclude_and_remove.optimize();
         data->full_and_leading.exclude.optimize();
         data->full_and_leading.exclude_and_remove.optimize();
+#endif
     }
 
     //qDebug() << "EXCLUDE? " << path;

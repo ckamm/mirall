@@ -70,7 +70,7 @@ int OCSYNC_EXPORT csync_exclude_load(const char *fname, c_strlist_t **list);
  *
  * @return  2 if excluded and needs cleanup, 1 if excluded, 0 if not.
  */
-CSYNC_EXCLUDE_TYPE csync_excluded_traversal(c_strlist_t *excludes, const char *path, int filetype, csync_exclude_traversal_hook hook, void *hookUserData);
+CSYNC_EXCLUDE_TYPE OCSYNC_EXPORT csync_excluded_traversal(c_strlist_t *excludes, const char *path, int filetype, csync_exclude_traversal_hook hook, void *hookUserData);
 
 /**
  * @brief csync_excluded_no_ctx
@@ -86,9 +86,9 @@ CSYNC_EXCLUDE_TYPE OCSYNC_EXPORT csync_excluded_no_ctx(c_strlist_t *excludes, co
  * @param file_name filename
  * @return true if file is reserved, false otherwise
  */
-bool csync_is_windows_reserved_word(const char *file_name);
+bool OCSYNC_EXPORT csync_is_windows_reserved_word(const char *file_name);
 
-const char *csync_exclude_expand_escapes(const char * input);
+const char * OCSYNC_EXPORT csync_exclude_expand_escapes(const char * input);
 
 #endif /* _CSYNC_EXCLUDE_H */
 /* vim: set ft=c.doxygen ts=8 sw=2 et cindent: */

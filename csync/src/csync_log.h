@@ -63,9 +63,13 @@ enum csync_log_priority_e {
 #define CSYNC_LOG(priority, ...) \
   csync_log(priority, __func__, __VA_ARGS__)
 
-void csync_log(int verbosity,
-               const char *function,
-               const char *format, ...) PRINTF_ATTRIBUTE(3, 4);
+void
+#ifdef WITH_UNIT_TESTING
+OCSYNC_EXPORT
+#endif
+csync_log(int verbosity,
+          const char *function,
+          const char *format, ...) PRINTF_ATTRIBUTE(3, 4);
 
 /**
  * }@
