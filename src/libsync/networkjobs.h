@@ -64,6 +64,11 @@ public:
     explicit LsColJob(AccountPtr account, const QString &path, QObject *parent = 0);
     explicit LsColJob(AccountPtr account, const QUrl &url, QObject *parent = 0);
     void start() Q_DECL_OVERRIDE;
+
+    /** Maps the full href of items to their sizes.
+     *
+     * Only available if the size property is requested.
+     */
     QHash<QString, qint64> _sizes;
 
     /**
@@ -78,10 +83,33 @@ public:
     QList<QByteArray> properties() const;
 
 signals:
+    /** Emitted if the LsColJob finishes without error
+     *
+     * \a items contains the full href to folders, including the dav url
+     *    and the trailing /
+     */
     void directoryListingSubfolders(const QStringList &items);
-    void directoryListingIterated(const QString &name, const QMap<QString,QString> &properties);
-    void finishedWithError(QNetworkReply *reply);
+
+    /** Emitted if the LsColJob finishes without error
+     *
+     * Redundant with directoryListingSubfolders()
+     */
     void finishedWithoutError();
+
+    /** Emitted for each entry in the directory
+     *
+     * \a name is the full href to the item, including the dav url and
+     *    a trailing / for folders
+     * \a properties maps the names of properties to their values. The
+     *    property names don't contain the namespace information.
+     *
+     * Note: In some situations this may be emitted even if the full LsCol
+     *       failed.
+     */
+    void directoryListingIterated(const QString &name, const QMap<QString,QString> &properties);
+
+    /** Emitted on failure */
+    void finishedWithError(QNetworkReply *reply);
 
 private slots:
     virtual bool finished() Q_DECL_OVERRIDE;

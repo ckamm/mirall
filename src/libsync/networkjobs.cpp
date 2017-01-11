@@ -232,9 +232,6 @@ bool LsColXMLParser::parse( const QByteArray& xml, QHash<QString, qint64> *sizes
         if (type == QXmlStreamReader::EndElement) {
             if (reader.namespaceUri() == QLatin1String("DAV:")) {
                 if (reader.name() == "response") {
-                    if (currentHref.endsWith('/')) {
-                        currentHref.chop(1);
-                    }
                     emit directoryListingIterated(currentHref, currentHttp200Properties);
                     currentHref.clear();
                     currentHttp200Properties.clear();

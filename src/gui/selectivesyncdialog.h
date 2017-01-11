@@ -52,13 +52,14 @@ public:
     QSize sizeHint() const Q_DECL_OVERRIDE;
 
 private slots:
+    void slotDirectoryListingIterated(const QString& name, const QMap<QString, QString>& properties);
     void slotUpdateDirectories(QStringList);
     void slotItemExpanded(QTreeWidgetItem *);
     void slotItemChanged(QTreeWidgetItem*,int);
     void slotLscolFinishedWithError(QNetworkReply*);
 private:
     void refreshFolders();
-    void recursiveInsert(QTreeWidgetItem* parent, QStringList pathTrail, QString path, qint64 size);
+    void recursiveInsert(QTreeWidgetItem* parent, QStringList pathTrail, QString path, qint64 size, const QByteArray& remotePerm);
 
     AccountPtr _account;
 
@@ -69,7 +70,8 @@ private:
     bool _inserting; // set to true when we are inserting new items on the list
     QLabel *_loading;
     QLabel *_bigFolderNotice;
-    quint64 _bigFolderSizeLimitBytes;
+    qint64 _bigFolderSizeLimitBytes;
+    QHash<QString, QByteArray> _folderPermissions;
 
     QTreeWidget *_folderTree;
 };

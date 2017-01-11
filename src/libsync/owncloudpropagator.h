@@ -43,6 +43,20 @@ qint64 criticalFreeSpaceLimit();
  */
 qint64 freeSpaceLimit();
 
+/** Checks whether a folder should only be synced after confirmation by the user
+ *
+ * \a sizeLimit: the size limit in bytes, negative values mean no limit
+ * \a getSize: functional to retrieve the folder size
+ * \a remotePerm: permissions string of the folder
+ *
+ * The size is retrieved only on demand because it needs an extra server
+ * roundtrip during discovery.
+ */
+bool folderNeedsUserConfirmation(
+        qint64 sizeLimit,
+        std::function<qint64()> getSize,
+        const char* remotePerm);
+
 class SyncJournalDb;
 class OwncloudPropagator;
 

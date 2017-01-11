@@ -154,6 +154,10 @@ public:
     void setupHooks(DiscoveryJob* discoveryJob, const QString &pathPrefix);
 };
 
+namespace detail {
+class RetrieveFolderSize;
+}
+
 /**
  * @brief The DiscoveryJob class
  *
@@ -209,6 +213,7 @@ public:
     QStringList _selectiveSyncWhiteList;
     qint64 _newBigFolderSizeLimit;
     Q_INVOKABLE void start();
+
 signals:
     void finished(int result);
     void folderDiscovered(bool local, QString folderUrl);
@@ -219,6 +224,8 @@ signals:
 
     // A new folder was discovered and was not synced because of the confirmation feature
     void newBigFolder(const QString &folder);
+
+    friend class detail::RetrieveFolderSize;
 };
 
 }

@@ -13,15 +13,14 @@
  */
 
 #include "discoveryphase.h"
+#include "account.h"
+#include "owncloudpropagator.h"
 #include <csync_private.h>
 #include <csync_rename.h>
 #include <qdebug.h>
 
 #include <QUrl>
-#include "account.h"
 #include <QFileInfo>
-#include "theme.h"
-#include <cstring>
 
 
 namespace OCC {
@@ -84,6 +83,34 @@ int DiscoveryJob::isInSelectiveSyncBlackListCallback(void *data, const char *pat
     return static_cast<DiscoveryJob*>(data)->isInSelectiveSyncBlackList(path);
 }
 
+namespace detail {
+class RetrieveFolderSize
+{
+    DiscoveryJob* _job;
+    QString _path;
+
+public:
+    explicit RetrieveFolderSize(DiscoveryJob* job, const QString& path)
+        : _job(job)
+        , _path(path)
+    {}
+
+    qint64 operator()() const
+    {
+        // Go in the main thread to do a PROPFIND to know the size of this folder
+        qint64 result = -1;
+
+        {
+            QMutexLocker locker(&_job->_vioMutex);
+            emit _job->doGetSizeSignal(_path, &result);
+            _job->_vioWaitCondition.wait(&_job->_vioMutex);
+        }
+
+        return result;
+    }
+};
+} // namespace detail
+
 bool DiscoveryJob::checkSelectiveSyncNewFolder(const QString& path, const char *remotePerm)
 {
     // If this path or the parent is in the white list, then we do not block this file
@@ -91,30 +118,7 @@ bool DiscoveryJob::checkSelectiveSyncNewFolder(const QString& path, const char *
         return false;
     }
 
-    if (Theme::instance()->dontSyncMountedStorageByDefault()) {
-        // 'M' in the permission means that it is unselected by default. (issue #5331)
-        if (std::strchr(remotePerm, 'M')) {
-            emit newBigFolder(path);
-            return true;
-        }
-    }
-
-    if (_newBigFolderSizeLimit < 0) {
-        // no limit, everything is allowed;
-        return false;
-    }
-
-    // Go in the main thread to do a PROPFIND to know the size of this folder
-    qint64 result = -1;
-
-    {
-        QMutexLocker locker(&_vioMutex);
-        emit doGetSizeSignal(path, &result);
-        _vioWaitCondition.wait(&_vioMutex);
-    }
-
-    auto limit = _newBigFolderSizeLimit;
-    if (result >= limit) {
+    if (folderNeedsUserConfirmation(_newBigFolderSizeLimit, detail::RetrieveFolderSize(this, path), remotePerm)) {
         // we tell the UI there is a new folder
         emit newBigFolder(path);
         return true;

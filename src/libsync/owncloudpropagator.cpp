@@ -25,6 +25,7 @@
 #include "configfile.h"
 #include "utility.h"
 #include "account.h"
+#include "theme.h"
 #include <json.h>
 
 #ifdef Q_OS_WIN
@@ -39,6 +40,7 @@
 #include <QObject>
 #include <QTimerEvent>
 #include <QDebug>
+#include <cstring>
 
 namespace OCC {
 
@@ -66,6 +68,27 @@ qint64 freeSpaceLimit()
     }
 
     return value;
+}
+
+
+bool folderNeedsUserConfirmation(
+        qint64 sizeLimit,
+        std::function<qint64()> getSize,
+        const char* remotePerm)
+{
+    if (Theme::instance()->dontSyncMountedStorageByDefault()) {
+        // 'M' in the permission means that it is unselected by default. (issue #5331)
+        if (std::strchr(remotePerm, 'M')) {
+            return true;
+        }
+    }
+
+    if (sizeLimit < 0) {
+        // no size limit, everything is allowed
+        return false;
+    }
+
+    return getSize() >= sizeLimit;
 }
 
 OwncloudPropagator::~OwncloudPropagator()

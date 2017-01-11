@@ -19,6 +19,7 @@
 #include "theme.h"
 #include "folderman.h"
 #include "configfile.h"
+#include "owncloudpropagator.h"
 #include <QDialogButtonBox>
 #include <QVBoxLayout>
 #include <QTreeWidget>
@@ -60,7 +61,7 @@ SelectiveSyncWidget::SelectiveSyncWidget(AccountPtr account, QWidget *parent)
     : QWidget(parent)
     , _account(account)
     , _inserting(false)
-    , _bigFolderSizeLimitBytes(std::numeric_limits<quint64>::max())
+    , _bigFolderSizeLimitBytes(-1)
     , _folderTree(new QTreeWidget(this))
 {
     _loading = new QLabel(tr("Loading ..."), this);
@@ -76,7 +77,14 @@ SelectiveSyncWidget::SelectiveSyncWidget(AccountPtr account, QWidget *parent)
     layout->addWidget(_folderTree);
 
     _bigFolderNotice = new QLabel(this);
-    _bigFolderNotice->setText(tr("Folders whose size exceeds the download confirmation threshold have been deselected. You may select them if you wish to download them."));
+
+    // The notice text depends on the logic in folderNeedsUserConfirmation()
+    if (Theme::instance()->dontSyncMountedStorageByDefault()) {
+        _bigFolderNotice->setText(tr("Folders that are on mounted storage or with sizes that exceed the download confirmation threshold have been deselected. You may select them if you wish to download them."));
+    } else {
+        _bigFolderNotice->setText(tr("Folders whose size exceeds the download confirmation threshold have been deselected. You may select them if you wish to download them."));
+    }
+
     _bigFolderNotice->setWordWrap(true);
     _bigFolderNotice->hide();
     layout->addWidget(_bigFolderNotice);
@@ -110,10 +118,21 @@ QSize SelectiveSyncWidget::sizeHint() const
     return QWidget::sizeHint().expandedTo(QSize(600, 600));
 }
 
+void SelectiveSyncWidget::slotDirectoryListingIterated(const QString& name, const QMap<QString, QString>& properties)
+{
+    // Only the "size" property is collected by default, also collect others
+    _folderPermissions[name] = properties.value("permissions").toUtf8();
+}
+
 void SelectiveSyncWidget::refreshFolders()
 {
     LsColJob *job = new LsColJob(_account, _folderPath, this);
-    job->setProperties(QList<QByteArray>() << "resourcetype" << "http://owncloud.org/ns:size");
+    job->setProperties(QList<QByteArray>()
+                       << "resourcetype"
+                       << "http://owncloud.org/ns:size"
+                       << "http://owncloud.org/ns:permissions");
+    connect(job, SIGNAL(directoryListingIterated(QString,QMap<QString,QString>)),
+            this, SLOT(slotDirectoryListingIterated(QString,QMap<QString,QString>)));
     connect(job, SIGNAL(directoryListingSubfolders(QStringList)),
             this, SLOT(slotUpdateDirectories(QStringList)));
     connect(job, SIGNAL(finishedWithError(QNetworkReply*)),
@@ -147,7 +166,16 @@ static QTreeWidgetItem* findFirstChild(QTreeWidgetItem *parent, const QString& t
     return 0;
 }
 
-void SelectiveSyncWidget::recursiveInsert(QTreeWidgetItem* parent, QStringList pathTrail, QString path, qint64 size)
+class GetSize
+{
+    qint64 _size;
+
+public:
+    explicit GetSize(qint64 size) : _size(size) {}
+    qint64 operator()() const { return _size; }
+};
+
+void SelectiveSyncWidget::recursiveInsert(QTreeWidgetItem* parent, QStringList pathTrail, QString path, qint64 size, const QByteArray& remotePerm)
 {
     QFileIconProvider prov;
     QIcon folderIcon = prov.icon(QFileIconProvider::Folder);
@@ -173,7 +201,7 @@ void SelectiveSyncWidget::recursiveInsert(QTreeWidgetItem* parent, QStringList p
                     }
                 }
                 if (item->checkState(0) != Qt::Unchecked
-                        && size >= 0 && quint64(size) >= _bigFolderSizeLimitBytes) {
+                        && folderNeedsUserConfirmation(_bigFolderSizeLimitBytes, GetSize(size), remotePerm.data())) {
                     _bigFolderNotice->show();
                     item->setCheckState(0, Qt::Unchecked);
                 }
@@ -191,7 +219,7 @@ void SelectiveSyncWidget::recursiveInsert(QTreeWidgetItem* parent, QStringList p
         }
 
         pathTrail.removeFirst();
-        recursiveInsert(item, pathTrail, path, size);
+        recursiveInsert(item, pathTrail, path, size, remotePerm);
     }
 }
 
@@ -257,6 +285,7 @@ void SelectiveSyncWidget::slotUpdateDirectories(QStringList list)
     Utility::sortFilenames(list);
     foreach (QString path, list) {
         auto size = job ? job->_sizes.value(path) : 0;
+        auto remotePerm = _folderPermissions.value(path);
         path.remove(pathToRemove);
         QStringList paths = path.split('/');
         if (paths.last().isEmpty()) paths.removeLast();
@@ -265,7 +294,7 @@ void SelectiveSyncWidget::slotUpdateDirectories(QStringList list)
         if (!path.endsWith('/')) {
             path.append('/');
         }
-        recursiveInsert(root, paths, path, size);
+        recursiveInsert(root, paths, path, size, remotePerm);
     }
 
     // Root is partially checked if any children are not checked
