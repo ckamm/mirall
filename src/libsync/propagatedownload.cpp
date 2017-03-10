@@ -325,6 +325,15 @@ void PropagateDownloadFile::start()
         }
     }
 
+    // ### CHECK IF WE SHOULD EVEN DOWNLOAD
+    if (_item->_instruction == CSYNC_INSTRUCTION_CONFLICT
+            && _item->_size == _item->log._other_size
+            && _item->_modtime == _item->log._other_modtime
+            && !_item->_contentChecksum.isEmpty()) {
+        // ### Trigger a local checksum computation and skip the download if
+        // the checksums match.
+    }
+
     // do a klaas' case clash check.
     if( propagator()->localFileNameClash(_item->_file) ) {
         done( SyncFileItem::NormalError, tr("File %1 can not be downloaded because of a local file name clash!")

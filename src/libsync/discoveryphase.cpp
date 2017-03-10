@@ -260,6 +260,8 @@ void DiscoverySingleDirectoryJob::start()
     props << "resourcetype" << "getlastmodified" << "getcontentlength" << "getetag"
           << "http://owncloud.org/ns:id" << "http://owncloud.org/ns:downloadURL"
           << "http://owncloud.org/ns:dDC" << "http://owncloud.org/ns:permissions";
+    // ### Ask for "http://owncloud.org/ns:checksums" here
+    //     but csync_vio_file_stat_s currently has no checksum field - and it could be multiple, too
     if (_isRootPath)
         props << "http://owncloud.org/ns:data-fingerprint";
 

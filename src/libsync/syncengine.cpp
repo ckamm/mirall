@@ -433,6 +433,8 @@ int SyncEngine::treewalkFile( TREE_WALK_FILE *file, bool remote )
         item->_contentChecksum = QByteArray(file->checksum);
         item->_contentChecksumType = _journal->getChecksumType(file->checksumTypeId);
     }
+    // ### What if we are a remote CONFLICT instruction and know the
+    // remote content checksum? Probably store it in _contentChecksum?
 
     // record the seen files to be able to clean the journal later
     _seenFiles.insert(item->_file);
