@@ -315,4 +315,23 @@ QString errorMessage(const QString& baseError, const QByteArray& body)
     return msg;
 }
 
+QString replyErrorMessage(const QNetworkReply &reply)
+{
+    QString base = reply.errorString();
+    int httpStatus = reply.attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+    QString httpReason = reply.attribute(QNetworkRequest::HttpReasonPhraseAttribute).toString();
+
+    if (httpReason.isEmpty() || httpStatus == 0 || !base.contains(httpReason)) {
+        return base;
+    }
+
+
+    return QString("Server replied with %1 %2 to %3 %4").arg(
+                QString::number(httpStatus),
+                httpReason,
+                "BLA", // get verb
+                reply.request().url().toDisplayString()
+                );
+}
+
 } // namespace OCC

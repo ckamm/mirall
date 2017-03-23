@@ -163,6 +163,9 @@ QString OWNCLOUDSYNC_EXPORT extractErrorMessage(const QByteArray& errorResponse)
 /** Builds a error message based on the error and the reply body. */
 QString OWNCLOUDSYNC_EXPORT errorMessage(const QString& baseError, const QByteArray& body);
 
+// ### Better error strings
+QString OWNCLOUDSYNC_EXPORT replyErrorMessage(const QNetworkReply& reply);
+
 } // namespace OCC
 
 
