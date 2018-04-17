@@ -88,6 +88,51 @@ public:
     QString defaultJournalPath(AccountPtr account);
 };
 
+class LocalDiscoveryDirtyTracker : public QObject
+{
+    Q_OBJECT
+public:
+    LocalDiscoveryDirtyTracker();
+
+    void addTouchedPath(const QByteArray &relativePath);
+
+    void startSyncFullDiscovery();
+    void startSyncPartialDiscovery();
+
+    // access current state to feed to the SyncEngine
+    const std::set<QByteArray> &localDiscoveryPaths() const;
+
+public slots:
+    /**
+     * Success and failure of sync items adjust what the next sync is
+     * supposed to do.
+     */
+    void slotItemCompleted(const SyncFileItemPtr &item);
+
+    /**
+     * When a sync finishes, the lists must be updated
+     */
+    void slotSyncFinished(bool success);
+
+private:
+
+    /**
+     * The paths that should be checked by the next local discovery.
+     *
+     * Mostly a collection of files the filewatchers have reported as touched.
+     * Also includes files that have had errors in the last sync run.
+     */
+    std::set<QByteArray> _localDiscoveryPaths;
+
+    /**
+     * The paths that the current sync run used for local discovery.
+     *
+     * For failing syncs, this list will be merged into _localDiscoveryPaths
+     * again when the sync is done to make sure everything is retried.
+     */
+    std::set<QByteArray> _previousLocalDiscoveryPaths;
+};
+
 /**
  * @brief The Folder class
  * @ingroup gui
@@ -391,20 +436,9 @@ private:
     QScopedPointer<FolderWatcher> _folderWatcher;
 
     /**
-     * The paths that should be checked by the next local discovery.
-     *
-     * Mostly a collection of files the filewatchers have reported as touched.
-     * Also includes files that have had errors in the last sync run.
+     * Keeps track of locally dirty files so we can skip local discovery sometimes.
      */
-    std::set<QByteArray> _localDiscoveryPaths;
-
-    /**
-     * The paths that the current sync run used for local discovery.
-     *
-     * For failing syncs, this list will be merged into _localDiscoveryPaths
-     * again when the sync is done to make sure everything is retried.
-     */
-    std::set<QByteArray> _previousLocalDiscoveryPaths;
+    QScopedPointer<LocalDiscoveryDirtyTracker> _localDiscoveryDirtyTracker;
 };
 }
 
