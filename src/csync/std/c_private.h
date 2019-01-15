@@ -42,8 +42,12 @@
 #include <errno.h>
 
 #ifdef __MINGW32__
+#ifndef EDQUOT
 #define EDQUOT 0
+#endif
+#ifndef ENODATA
 #define ENODATA 0
+#endif
 #ifndef S_IRGRP
 #define S_IRGRP 0
 #endif
