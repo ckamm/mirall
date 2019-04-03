@@ -865,6 +865,7 @@ SocketApi::FileData SocketApi::FileData::parentFolder() const
 
 void SocketApi::command_GET_MENU_ITEMS(const QString &argument, OCC::SocketListener *listener)
 {
+    qWarning() << "XXX";
     listener->sendMessage(QString("GET_MENU_ITEMS:BEGIN"));
     QStringList files = argument.split(QLatin1Char('\x1e')); // Record Separator
 

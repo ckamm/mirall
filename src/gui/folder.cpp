@@ -577,10 +577,17 @@ void Folder::slotWatchedPathChanged(const QString &path)
     scheduleThisFolderSoon();
 }
 
+// implicit hydration: removes contradictory pin state and marks for download
 void Folder::downloadVirtualFile(const QString &_relativepath)
 {
     qCInfo(lcFolder) << "Download virtual file: " << _relativepath;
     auto relativepath = _relativepath.toUtf8();
+
+    // ### must drop vfs suffix first
+    auto pin = _vfs->pinState(_relativePath);
+    if (pin && *pin == PinState::OnlineOnly) {
+        _vfs->setPinState(_relativePath, PinState::Unspecified);
+    }
 
     // Set in the database that we should download the file
     SyncJournalFileRecord record;
@@ -590,14 +597,19 @@ void Folder::downloadVirtualFile(const QString &_relativepath)
     if (record._type == ItemTypeVirtualFile) {
         record._type = ItemTypeVirtualFileDownload;
         _journal.setFileRecord(record);
+    }
+
+    // What about directories? Unsupported?
         // Make sure we go over that file during the discovery even if
         // no actual remote discovery would be necessary
-        _journal.schedulePathForRemoteDiscovery(relativepath);
-    } else if (record._type == ItemTypeDirectory || relativepath.isEmpty()) {
-        _journal.markVirtualFileForDownloadRecursively(relativepath);
-    } else {
-        qCWarning(lcFolder) << "Invalid existing record " << record._type << " for file " << _relativepath;
-    }
+//    } else if (record._type == ItemTypeDirectory || relativepath.isEmpty()) {
+//        _journal.markVirtualFileForDownloadRecursively(relativepath);
+//    } else {
+//        qCWarning(lcFolder) << "Invalid existing record " << record._type << " for file " << _relativepath;
+//    }
+
+    // This is not ideal
+    _journal.schedulePathForRemoteDiscovery(relativepath);
 
     // Schedule a sync (Folder man will start the sync in a few ms)
     slotScheduleThisFolder();
@@ -608,25 +620,25 @@ void Folder::dehydrateFile(const QString &_relativepath)
     qCInfo(lcFolder) << "Dehydrating file: " << _relativepath;
     auto relativepath = _relativepath.toUtf8();
 
-    auto markForDehydration = [&](SyncJournalFileRecord rec) {
-        if (rec._type != ItemTypeFile)
-            return;
-        rec._type = ItemTypeVirtualFileDehydration;
-        _journal.setFileRecord(rec);
+//    auto markForDehydration = [&](SyncJournalFileRecord rec) {
+//        if (rec._type != ItemTypeFile)
+//            return;
+//        rec._type = ItemTypeVirtualFileDehydration;
+//        _journal.setFileRecord(rec);
         _localDiscoveryTracker->addTouchedPath(relativepath);
-    };
+//    };
 
-    SyncJournalFileRecord record;
-    _journal.getFileRecord(relativepath, &record);
-    if (!record.isValid() && !relativepath.isEmpty())
-        return;
-    if (record._type == ItemTypeFile) {
-        markForDehydration(record);
-    } else if (record._type == ItemTypeDirectory || relativepath.isEmpty()) {
-        _journal.getFilesBelowPath(relativepath, markForDehydration);
-    } else {
-        qCWarning(lcFolder) << "Invalid existing record " << record._type << " for file " << _relativepath;
-    }
+//    SyncJournalFileRecord record;
+//    _journal.getFileRecord(relativepath, &record);
+//    if (!record.isValid() && !relativepath.isEmpty())
+//        return;
+//    if (record._type == ItemTypeFile) {
+//        markForDehydration(record);
+//    } else if (record._type == ItemTypeDirectory || relativepath.isEmpty()) {
+//        _journal.getFilesBelowPath(relativepath, markForDehydration);
+//    } else {
+//        qCWarning(lcFolder) << "Invalid existing record " << record._type << " for file " << _relativepath;
+//    }
 
     // Schedule a sync (Folder man will start the sync in a few ms)
     slotScheduleThisFolder();

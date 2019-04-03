@@ -93,6 +93,28 @@ void ProcessDirectoryJob::process()
         dbError();
         return;
     }
+    if (isVfsWithSuffix()) {
+        const auto suffix = _discoveryData->_syncOptions._vfs->fileSuffix().toUtf8();
+        // Propagate the db based pin-states to the db _type flag
+        for (auto &e : entries) {
+            auto &rec = e.second.dbEntry;
+            if (!rec.isValid())
+                continue;
+
+            QByteArray flagsPath = rec._path;
+            if (rec.isVirtualFile()) {
+                if (flagsPath.endsWith(suffix))
+                    flagsPath.chop(suffix.size());
+            }
+            auto pin = _discoveryData->_statedb->internalPinStates().rawForPath(flagsPath);
+            if (!pin || *pin == PinState::Inherited)
+                pin = _pinState;
+            if (rec._type == ItemTypeFile && *pin == PinState::OnlineOnly)
+                rec._type = ItemTypeVirtualFileDehydration;
+            if (rec._type == ItemTypeVirtualFile && *pin == PinState::AlwaysLocal)
+                rec._type = ItemTypeVirtualFileDownload;
+        }
+    }
 
     for (auto &e : _localNormalQueryEntries) {
         // Normally for vfs-suffix files the local entries need the suffix removed.
@@ -1402,10 +1424,12 @@ bool ProcessDirectoryJob::isVfsWithSuffix() const
 
 void ProcessDirectoryJob::computePinState(PinState parentState)
 {
+    qWarning() << "ZZZ" << _currentFolder._local << int(parentState);
     _pinState = parentState;
     if (_queryLocal != ParentDontExist) {
         if (auto state = _discoveryData->_syncOptions._vfs->pinState(_currentFolder._local)) // ouch! pin local or original?
             _pinState = *state;
+        qWarning() << "ZZZ2" << _currentFolder._local << int(_pinState);
     }
 }
 
